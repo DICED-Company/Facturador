@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Factura Proforma</title>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Generador de Facturas Proforma horizontal con exportación en PNG de máxima calidad.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Proforma">
+    <link id="pwa-manifest-link" rel="manifest" href="manifest.json">
+    <link id="apple-touch-icon-link" rel="apple-touch-icon" href="">
+    <link id="favicon-link" rel="icon" type="image/png" href="">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- html2canvas for Ultra-HD PNG export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        /* Editable fields visual feedback */
+        [contenteditable="true"] {
+            outline: none;
+            border-radius: 4px;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        [contenteditable="true"]:hover {
+            background-color: rgba(59, 130, 246, 0.08);
+        }
+        [contenteditable="true"]:focus {
+            background-color: rgba(59, 130, 246, 0.12);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+        }
+
+        /* Clean numeric inputs inside invoice table */
+        .invoice-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            color: inherit;
+            border-radius: 4px;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .invoice-input:hover {
+            background-color: rgba(59, 130, 246, 0.08);
+        }
+        .invoice-input:focus {
+            background-color: rgba(59, 130, 246, 0.12);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+        }
+
+        /* Remove number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Horizontal scroll wrapper for small mobile screens so horizontal layout stays intact */
+        .invoice-viewport {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Fixed horizontal proforma dimensions to prevent border overlap bugs */
+        .proforma-sheet {
+            width: 820px;
+            min-width: 820px;
+            background-color: #ffffff;
+            box-sizing: border-box;
+        }
+
+        /* Mode when exporting: hide UI helpers */
+        .exporting .no-export {
+            display: none !important;
+        }
+        .exporting [contenteditable="true"],
+        .exporting .invoice-input {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-6 px-3 sm:px-6 lg:pr-[340px] flex flex-col items-center relative">
+
+    <!-- Floating Toggle Button for Right Menu on Mobile/Tablet -->
+    <button id="btn-toggle-sidebar" type="button"
+        class="lg:hidden fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-slate-900 hover:bg-slate-800 text-white px-3 py-3.5 rounded-l-2xl shadow-lg flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span>Resolución / MP</span>
+    </button>
+
+    <!-- Mobile Backdrop Overlay -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden lg:hidden"></div>
+
+    <!-- Right Lateral Menu (Sidebar) -->
+    <aside id="right-sidebar"
+        class="fixed top-0 right-0 h-full w-80 bg-white border-l border-slate-200 shadow-xl lg:shadow-sm z-50 transform translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between overflow-y-auto p-5">
+        <div class="space-y-6">
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 leading-tight">Ajustes de Imagen</h2>
+                        <p class="text-xs text-slate-500">Exportación PNG</p>
+                    </div>
+                </div>
+                <button id="btn-close-sidebar" type="button"
+                    class="lg:hidden w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-lg font-bold cursor-pointer">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Section 1: Resolución (1 MP, 2 MP, 4 MP) -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-700">Resolución</label>
+                    <span id="resolution-dimensions-badge" class="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                        4 MP
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Selector de resolución">
+                    <button type="button" data-mp="1"
+                        class="res-option-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 bg-slate-50/70 text-slate-700 transition cursor-pointer">
+                        <span class="text-base font-extrabold">1 MP</span>
+                        <span id="mp-sub-1" class="text-[10px] font-medium text-slate-500 mt-0.5">Eficiente</span>
+                    </button>
+
+                    <button type="button" data-mp="2"
+                        class="res-option-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 bg-slate-50/70 text-slate-700 transition cursor-pointer">
+                        <span class="text-base font-extrabold">2 MP</span>
+                        <span id="mp-sub-2" class="text-[10px] font-medium text-slate-500 mt-0.5">Eficiente</span>
+                    </button>
+
+                    <button type="button" data-mp="4"
+                        class="res-option-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs transition cursor-pointer">
+                        <span class="text-base font-extrabold">4 MP</span>
+                        <span id="mp-sub-4" class="text-[10px] font-semibold text-blue-700 mt-0.5">Eficiente</span>
+                    </button>
+                </div>
+
+                <p id="resolution-helper-text" class="text-xs text-slate-500 leading-relaxed">
+                    4 Megapíxeles con renderizado vectorial nítido y cálculo de peso ultra eficiente.
+                </p>
+            </div>
+
+            <!-- Section 2: Barra deslizante de Profundidad (2, 4, 8, 16 y 24 bpp) -->
+            <div class="space-y-3 pt-4 border-t border-slate-200">
+                <div class="flex items-center justify-between">
+                    <label for="bpp-slider" class="text-xs font-bold uppercase tracking-wider text-slate-700">Profundidad (bpp)</label>
+                    <span id="bpp-badge" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        4 bpp (16 tonos)
+                    </span>
+                </div>
+
+                <div class="space-y-1.5">
+                    <input id="bpp-slider" type="range" min="0" max="4" step="1" value="1"
+                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <div class="flex justify-between text-[10px] font-semibold text-slate-400 px-0.5 select-none">
+                        <span>2 bpp</span>
+                        <span>4 bpp</span>
+                        <span>8 bpp</span>
+                        <span>16 bpp</span>
+                        <span>24 bpp</span>
+                    </div>
+                </div>
+
+                <p id="bpp-helper-text" class="text-xs text-slate-500 leading-relaxed">
+                    Ajusta los bits por píxel en pasos exactos: 2, 4, 8, 16 o 24 bpp (Color RGB completo).
+                </p>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer Summary & Action -->
+        <div class="pt-5 border-t border-slate-200 mt-6 space-y-3">
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1">
+                <div class="flex justify-between text-slate-600">
+                    <span>Calidad de imagen:</span>
+                    <span id="summary-bpp" class="font-bold text-slate-900">4 bits por píxel (4 bpp)</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Resolución activa:</span>
+                    <span id="summary-mp" class="font-bold text-slate-900">4 MP</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Peso eficiente estimado:</span>
+                    <span id="summary-raw-size" class="font-bold text-blue-700">~0.12 MB</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Calidad de trazado:</span>
+                    <span class="font-bold text-emerald-700">100% Vectorial Nítido</span>
+                </div>
+            </div>
+
+            <button id="btn-sidebar-download" type="button"
+                class="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm transition cursor-pointer text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
+                </svg>
+                <span>Descargar PNG</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Top Control Panel -->
+    <header class="w-full max-w-[820px] mb-5">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+            <!-- Primary Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button id="btn-add-row" type="button"
+                    class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer text-sm sm:text-base">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Agregar Fila</span>
+                </button>
+
+                <button id="btn-download-png" type="button"
+                    class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer text-sm sm:text-base">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/>
+                    </svg>
+                    <span>Descargar PNG</span>
+                </button>
+
+                <button id="btn-upload-logo" type="button"
+                    class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3.5 py-2.5 rounded-xl transition cursor-pointer text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Cambiar Logo</span>
+                </button>
+                <input id="logo-file-input" type="file" accept="image/*" class="hidden">
+            </div>
+
+            <!-- Helper instructions -->
+            <p class="text-center text-slate-500 text-xs sm:text-sm mt-3.5 leading-relaxed">
+                Haz clic en los datos del cliente, productos, fecha o montos para editarlos. Los textos fijos están protegidos para evitar cambios accidentales.
+            </p>
+        </div>
+    </header>
+
+    <!-- Invoice Viewport Wrapper (allows smooth horizontal view on mobile & exact horizontal capture on export) -->
+    <main class="w-full max-w-[850px] invoice-viewport pb-6 flex justify-start sm:justify-center">
+        <!-- The Proforma Sheet to Export -->
+        <div id="invoice-sheet" class="proforma-sheet rounded-none shadow-lg border border-slate-300 p-8 text-slate-900">
+
+            <!-- Main Boxed Frame (Header + Client Data + Table Header cleanly unified without overlapping rows) -->
+            <div class="border-2 border-slate-900">
+
+                <!-- 1. TOP BANNER: Title + Logo -->
+                <div class="flex items-center justify-between px-6 py-4 border-b-2 border-slate-900">
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-tight leading-tight uppercase text-slate-900 select-none">
+                            FACTURA<br>PROFORMA
+                        </h1>
+                    </div>
+
+                    <!-- Logo Area (Default Geometric Triangle from Reference or Uploaded Image) -->
+                    <div id="logo-container" title="Haz clic para cambiar el logo"
+                        class="cursor-pointer select-none flex items-center justify-center">
+                        <svg id="default-logo" class="w-14 h-14 text-black" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Exact geometric open-bottom inverted triangle logo without white background -->
+                            <polygon points="43,144 457,144 457,172 332,424 277,424 398,181 102,181 223,424 168,424 43,172" fill="currentColor"/>
+                        </svg>
+                        <img id="custom-logo" src="" alt="Logo" class="hidden max-h-16 max-w-[160px] object-contain" />
+                    </div>
+                </div>
+
+                <!-- 2. HORIZONTAL CLIENT & SENDER DATA SECTION -->
+                <div class="grid grid-cols-12 px-6 py-4 border-b-2 border-slate-900 bg-white">
+                    <!-- Left Column: Client Data -->
+                    <div class="col-span-6 pr-6 flex flex-col justify-start">
+                        <span class="text-sm font-medium text-slate-600 mb-1 inline-block select-none">Datos del cliente:</span>
+                        <div id="client-name" contenteditable="true" spellcheck="false"
+                            class="text-xl font-bold text-slate-900 leading-snug">Brenda Díaz</div>
+                    </div>
+
+                    <!-- Right Column: Business / Sender / Delivery Details with Vertical Divider -->
+                    <div class="col-span-6 pl-6 border-l-2 border-slate-800 flex flex-col justify-center space-y-1 text-sm">
+                        <div class="font-bold text-slate-900 select-none">Datos:</div>
+                        <div id="sender-name" contenteditable="true" spellcheck="false" class="font-semibold text-slate-800">Darwing Moreno</div>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-slate-600 select-none">Cel:</span>
+                            <span id="sender-phone" contenteditable="true" spellcheck="false" class="font-bold text-slate-900">5808 1576</span>
+                        </div>
+                        <div class="flex items-baseline gap-1 leading-snug">
+                            <span class="text-slate-600 shrink-0 select-none">Dirección:</span>
+                            <span id="sender-address" contenteditable="true" spellcheck="false" class="font-semibold text-slate-800">Nagarote, Casino Toruño 2 y media al sur</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ITEMS TABLE -->
+                <table class="w-full border-collapse table-fixed">
+                    <thead>
+                        <tr class="bg-white text-slate-900 text-sm font-semibold border-b border-slate-800 select-none">
+                            <th class="w-[12%] py-2.5 px-2 text-center border-r border-slate-700">Cant.</th>
+                            <th class="w-[48%] py-2.5 px-4 text-left border-r border-slate-700">Descripción</th>
+                            <th class="w-[20%] py-2.5 px-3 text-center border-r border-slate-700">Precio uni.</th>
+                            <th class="w-[20%] py-2.5 px-3 text-center">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoice-rows" class="divide-y divide-slate-700 text-sm">
+                        <!-- Dynamic rows injected by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 4. BOTTOM SECTION: Footer Notes (Left) + Shipping & Grand Total (Right, aligned with columns) -->
+            <div class="grid grid-cols-12 items-start">
+                <!-- Left: Date & Notes -->
+                <div class="col-span-7 pt-6 pr-4 space-y-1.5 text-xs sm:text-sm text-slate-900">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="font-bold select-none">Fecha:</span>
+                        <span id="invoice-date" contenteditable="true" spellcheck="false" class="font-bold">7/10/2026</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="font-bold shrink-0 select-none">Nota de envío:</span>
+                        <span id="shipping-note" contenteditable="true" spellcheck="false" class="font-bold">Envío a través de Cargotrans</span>
+                    </div>
+                    <p class="text-xs font-medium text-slate-700 pt-3 select-none">
+                        Proforma válida por 15 días a partir de la fecha de emisión
+                    </p>
+                </div>
+
+                <!-- Right: Envío & TOTAL C$ -->
+                <div class="col-span-5">
+                    <table class="w-full border-collapse table-fixed">
+                        <tbody>
+                            <!-- Envío Row -->
+                            <tr class="border-b border-slate-700">
+                                <td class="w-1/2 py-2.5 px-3 text-right font-medium text-slate-800 border-r border-slate-700 select-none">
+                                    <span>Envío:</span>
+                                </td>
+                                <td class="w-1/2 py-2.5 px-3 bg-slate-100/80 border-r border-slate-700">
+                                    <div class="flex items-center justify-center font-bold text-slate-900 text-sm">
+                                        <span class="mr-1 select-none currency-symbol">C$</span>
+                                        <input id="shipping-input" type="number" step="any" min="0" value="150"
+                                            class="invoice-input text-center font-bold w-20"
+                                            aria-label="Costo de envío">
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Grand Total Row -->
+                            <tr>
+                                <td class="w-1/2 py-3 px-3 text-right font-extrabold text-base sm:text-lg text-slate-900 select-none">
+                                    <span>TOTAL C$</span>
+                                </td>
+                                <td class="w-1/2 py-3 px-3 bg-[#cbd5e1] border border-slate-700 text-center font-extrabold text-base sm:text-lg text-slate-900 select-none">
+                                    <span id="grand-total-display">C$ 9,330</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Status Toast Notification (No alert() used) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-xl transition-all">
+        <span id="toast-text">Exportando archivo...</span>
+    </div>
+
+    <script>
+        // Initial rows matching the user's reference image (with fixed formatting)
+        const initialRows = [
+            { qty: 6, description: 'Camisetas verde', price: 390 },
+            { qty: 18, description: 'Camisetas sin manga verde', price: 380 },
+            { qty: '', description: '', price: '' }
+        ];
+
+        const rowsContainer = document.getElementById('invoice-rows');
+        const shippingInput = document.getElementById('shipping-input');
+        const grandTotalDisplay = document.getElementById('grand-total-display');
+        const invoiceSheet = document.getElementById('invoice-sheet');
+        const toastEl = document.getElementById('toast');
+        const toastText = document.getElementById('toast-text');
+
+        const BPP_STEPS = [2, 4, 8, 16, 24];
+        const MP_STEPS = [1, 2, 4];
+        let selectedMegapixels = 4;
+        let selectedBpp = 4;
+
+        // Calculate the most efficient estimated size (in MB/KB) for crisp vector invoice graphics
+        function calculateEfficientSizeLabel(mp, bpp) {
+            const totalPixels = mp * 1000000;
+            const rawBytes = (totalPixels * bpp) / 8;
+            // Vector invoice sheets have ~88-92% uniform runs; lossless RLE + PNG filtering achieves high efficiency
+            const compressionFactor = bpp <= 4 ? 0.08 : (bpp === 8 ? 0.09 : (bpp === 16 ? 0.11 : 0.12));
+            const estimatedBytes = Math.max(18 * 1024, Math.round(rawBytes * compressionFactor));
+            const mb = estimatedBytes / (1024 * 1024);
+            if (mb < 0.1) {
+                return `~${Math.round(estimatedBytes / 1024)} KB`;
+            }
+            return `~${mb.toFixed(2)} MB`;
+        }
+
+        const resOptionBtns = document.querySelectorAll('.res-option-btn');
+        const resDimensionsBadge = document.getElementById('resolution-dimensions-badge');
+        const resHelperText = document.getElementById('resolution-helper-text');
+        const summaryMp = document.getElementById('summary-mp');
+        const summaryRawSize = document.getElementById('summary-raw-size');
+        const summaryBpp = document.getElementById('summary-bpp');
+        const bppSlider = document.getElementById('bpp-slider');
+        const bppBadge = document.getElementById('bpp-badge');
+
+        // Right Sidebar mobile drawer controls
+        const rightSidebar = document.getElementById('right-sidebar');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+
+        function toggleMobileSidebar(show) {
+            if (show) {
+                rightSidebar.classList.remove('translate-x-full');
+                sidebarBackdrop.classList.remove('hidden');
+            } else {
+                rightSidebar.classList.add('translate-x-full');
+                sidebarBackdrop.classList.add('hidden');
+            }
+        }
+
+        btnToggleSidebar.addEventListener('click', () => toggleMobileSidebar(true));
+        btnCloseSidebar.addEventListener('click', () => toggleMobileSidebar(false));
+        sidebarBackdrop.addEventListener('click', () => toggleMobileSidebar(false));
+
+        // Calculate target pixel dimensions and scale factor for 1 MP, 2 MP, or 4 MP
+        function getResolutionMetrics(mp) {
+            const baseWidth = 820;
+            const baseHeight = invoiceSheet.offsetHeight || 520;
+            const targetTotalPixels = mp * 1000000;
+            const scale = Math.sqrt(targetTotalPixels / (baseWidth * baseHeight));
+            const outWidth = Math.round(baseWidth * scale);
+            const outHeight = Math.round(baseHeight * scale);
+            return { scale, outWidth, outHeight, baseWidth, baseHeight };
+        }
+
+        function updateResolutionUI(mp) {
+            const validMp = MP_STEPS.includes(Number(mp)) ? Number(mp) : 4;
+            selectedMegapixels = validMp;
+            if (!BPP_STEPS.includes(selectedBpp)) {
+                selectedBpp = 4;
+            }
+            const { outWidth, outHeight } = getResolutionMetrics(selectedMegapixels);
+            const efficientSizeText = calculateEfficientSizeLabel(selectedMegapixels, selectedBpp);
+
+            resOptionBtns.forEach((btn) => {
+                const btnMp = Number(btn.getAttribute('data-mp'));
+                const subLabel = btn.querySelector('span:last-child');
+                if (subLabel) {
+                    subLabel.textContent = calculateEfficientSizeLabel(btnMp, selectedBpp);
+                }
+                if (btnMp === selectedMegapixels) {
+                    btn.className = 'res-option-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-blue-600 bg-blue-50/80 text-blue-900 shadow-xs transition cursor-pointer';
+                    if (subLabel) subLabel.className = 'text-[10px] font-semibold text-blue-700 mt-0.5';
+                } else {
+                    btn.className = 'res-option-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 bg-slate-50/70 text-slate-700 transition cursor-pointer';
+                    if (subLabel) subLabel.className = 'text-[10px] font-medium text-slate-500 mt-0.5';
+                }
+            });
+
+            resDimensionsBadge.textContent = `${selectedMegapixels} MP (${outWidth}×${outHeight} px)`;
+            summaryMp.textContent = `${selectedMegapixels} MP (${outWidth}×${outHeight})`;
+
+            if (summaryRawSize) {
+                summaryRawSize.textContent = `${efficientSizeText} (${selectedBpp} bpp)`;
+            }
+
+            if (summaryBpp) {
+                summaryBpp.textContent = `${selectedBpp} bits por píxel (${selectedBpp} bpp)`;
+            }
+
+            if (bppBadge) {
+                const levelsText = selectedBpp === 24
+                    ? '16.7M colores'
+                    : `${Math.pow(2, selectedBpp).toLocaleString('en-US')} niveles`;
+                bppBadge.textContent = `${selectedBpp} bpp (${levelsText})`;
+            }
+
+            const stepIndex = BPP_STEPS.indexOf(selectedBpp);
+            if (bppSlider && stepIndex !== -1 && Number(bppSlider.value) !== stepIndex) {
+                bppSlider.value = stepIndex;
+            }
+
+            resHelperText.textContent = `${selectedMegapixels} MP (${outWidth}×${outHeight} px) con trazado vectorial nítido a ${selectedBpp} bpp y peso optimizado (${efficientSizeText}).`;
+        }
+
+        resOptionBtns.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                updateResolutionUI(Number(btn.getAttribute('data-mp')));
+                saveAppState();
+            });
+        });
+
+        if (bppSlider) {
+            bppSlider.addEventListener('input', (e) => {
+                const idx = Math.max(0, Math.min(BPP_STEPS.length - 1, Number(e.target.value) || 0));
+                selectedBpp = BPP_STEPS[idx];
+                updateResolutionUI(selectedMegapixels);
+                saveAppState();
+            });
+        }
+
+        // Format numbers cleanly with commas (e.g., 2,340 or 9,330.50 if decimals exist)
+        function formatCurrencyNumber(value) {
+            if (isNaN(value) || value === null) return '0';
+            const hasDecimals = value % 1 !== 0;
+            return value.toLocaleString('en-US', {
+                minimumFractionDigits: hasDecimals ? 2 : 0,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Show non-blocking notification message
+        let toastTimeout = null;
+        function showToast(message, duration = 2600) {
+            toastText.textContent = message;
+            toastEl.classList.remove('hidden');
+            toastEl.classList.add('flex');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toastEl.classList.add('hidden');
+                toastEl.classList.remove('flex');
+            }, duration);
+        }
+
+        function createRowElement(data = { qty: '', description: '', price: '' }, index = 0) {
+            const tr = document.createElement('tr');
+            // Subtle alternating row shading like the reference image
+            tr.className = 'group relative odd:bg-[#e5eaf0]/60 even:bg-[#f1f5f9]/70 transition-colors';
+
+            const qtyVal = data.qty !== undefined && data.qty !== '' ? data.qty : '';
+            const priceVal = data.price !== undefined && data.price !== '' ? data.price : '';
+            const rowTotal = (parseFloat(qtyVal) > 0 && parseFloat(priceVal) >= 0)
+                ? `C$ ${formatCurrencyNumber(parseFloat(qtyVal) * parseFloat(priceVal))}`
+                : '';
+
+            tr.innerHTML = `
+                <td class="py-2.5 px-2 text-center font-bold text-slate-900 border-r border-slate-700">
+                    <input type="number" step="any" min="0" placeholder="" value="${qtyVal}"
+                        class="invoice-input row-qty text-center font-bold" aria-label="Cantidad">
+                </td>
+                <td class="py-2.5 px-4 text-left font-bold text-slate-900 border-r border-slate-700">
+                    <div contenteditable="true" spellcheck="false"
+                        class="row-desc w-full min-h-[1.4rem] outline-none">${data.description || ''}</div>
+                </td>
+                <td class="py-2.5 px-3 text-left font-medium text-slate-800 border-r border-slate-700">
+                    <div class="flex items-center">
+                        <span class="mr-1 select-none text-slate-700">C$</span>
+                        <input type="number" step="any" min="0" placeholder="" value="${priceVal}"
+                            class="invoice-input row-price font-medium" aria-label="Precio unitario">
+                    </div>
+                </td>
+                <td class="py-2.5 px-3 text-center font-bold text-slate-900 relative">
+                    <span class="row-total-text">${rowTotal}</span>
+                    <button type="button" title="Eliminar fila"
+                        class="no-export btn-remove-row opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-rose-100 hover:bg-rose-600 text-rose-600 hover:text-white flex items-center justify-center text-xs font-bold shadow-sm cursor-pointer">
+                        &times;
+                    </button>
+                </td>
+            `;
+
+            // Attach listeners for real-time math
+            const qtyInput = tr.querySelector('.row-qty');
+            const priceInput = tr.querySelector('.row-price');
+            const removeBtn = tr.querySelector('.btn-remove-row');
+
+            qtyInput.addEventListener('input', calculateTotals);
+            priceInput.addEventListener('input', calculateTotals);
+
+            removeBtn.addEventListener('click', () => {
+                if (rowsContainer.children.length > 1) {
+                    tr.remove();
+                    calculateTotals();
+                } else {
+                    // If it's the last row, just clear its values
+                    qtyInput.value = '';
+                    priceInput.value = '';
+                    tr.querySelector('.row-desc').textContent = '';
+                    calculateTotals();
+                }
+            });
+
+            return tr;
+        }
+
+        function calculateTotals() {
+            let subtotal = 0;
+            const rows = rowsContainer.querySelectorAll('tr');
+
+            rows.forEach((row) => {
+                const qty = parseFloat(row.querySelector('.row-qty').value);
+                const price = parseFloat(row.querySelector('.row-price').value);
+                const totalCell = row.querySelector('.row-total-text');
+
+                if (!isNaN(qty) && qty > 0 && !isNaN(price) && price >= 0) {
+                    const lineTotal = qty * price;
+                    subtotal += lineTotal;
+                    totalCell.textContent = `C$ ${formatCurrencyNumber(lineTotal)}`;
+                } else {
+                    totalCell.textContent = '';
+                }
+            });
+
+            const shipping = parseFloat(shippingInput.value) || 0;
+            const grandTotal = subtotal + shipping;
+            grandTotalDisplay.textContent = `C$ ${formatCurrencyNumber(grandTotal)}`;
+            updateResolutionUI(selectedMegapixels);
+            saveAppState();
+        }
+
+        const STORAGE_KEY = 'proforma_pwa_state_v1';
+
+        function saveAppState() {
+            try {
+                const rowsData = [];
+                rowsContainer.querySelectorAll('tr').forEach((tr) => {
+                    rowsData.push({
+                        qty: tr.querySelector('.row-qty')?.value || '',
+                        description: tr.querySelector('.row-desc')?.textContent || '',
+                        price: tr.querySelector('.row-price')?.value || ''
+                    });
+                });
+
+                const state = {
+                    rows: rowsData,
+                    shipping: shippingInput.value,
+                    customLogoSrc: !customLogo.classList.contains('hidden') ? customLogo.src : '',
+                    megapixels: selectedMegapixels,
+                    bpp: selectedBpp
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                // Ignore storage quota errors
+            }
+        }
+
+        function loadAppState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Save when any contenteditable element is modified
+        invoiceSheet.addEventListener('input', (e) => {
+            if (e.target.hasAttribute('contenteditable')) {
+                saveAppState();
+            }
+        });
+
+        // Helper to wrap text lines cleanly in native 2D canvas
+        function getWrappedLines(ctx, text, maxWidth) {
+            const words = String(text || '').trim().split(/\s+/);
+            if (!words.length || words[0] === '') return [''];
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const testLine = currentLine + ' ' + words[i];
+                if (ctx.measureText(testLine).width <= maxWidth) {
+                    currentLine = testLine;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // Native Vector Canvas Renderer: draws every line, box, logo, and font directly at target MP resolution
+        // Eliminates 100% of html2canvas blurriness and pixelation
+        async function captureInvoiceCanvas() {
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            }
+
+            const baseWidth = 820;
+            const pad = 32; // p-8 = 32px
+            const frameX = pad;
+            const frameY = pad;
+            const frameW = baseWidth - pad * 2; // 756px
+
+            // Collect live data from DOM
+            const clientName = document.getElementById('client-name')?.textContent.trim() || '';
+            const senderName = document.getElementById('sender-name')?.textContent.trim() || '';
+            const senderPhone = document.getElementById('sender-phone')?.textContent.trim() || '';
+            const senderAddress = document.getElementById('sender-address')?.textContent.trim() || '';
+            const invoiceDate = document.getElementById('invoice-date')?.textContent.trim() || '';
+            const shippingNote = document.getElementById('shipping-note')?.textContent.trim() || '';
+            const shippingVal = parseFloat(shippingInput.value) || 0;
+            const grandTotalText = grandTotalDisplay.textContent.trim() || 'C$ 0';
+
+            const rowItems = [];
+            rowsContainer.querySelectorAll('tr').forEach((tr) => {
+                const qty = tr.querySelector('.row-qty')?.value.trim() || '';
+                const desc = tr.querySelector('.row-desc')?.textContent.trim() || '';
+                const price = tr.querySelector('.row-price')?.value.trim() || '';
+                const total = tr.querySelector('.row-total-text')?.textContent.trim() || '';
+                rowItems.push({ qty, desc, price, total });
+            });
+
+            // Measure dynamic heights in logical units (820px base width)
+            const measureCanvas = document.createElement('canvas');
+            const mCtx = measureCanvas.getContext('2d');
+
+            const bannerH = 92;
+            mCtx.font = '600 14px Inter, sans-serif';
+            const addrLines = getWrappedLines(mCtx, senderAddress, (frameW / 2) - 48 - 68);
+            const infoSectionH = Math.max(114, 78 + addrLines.length * 20);
+            const tableHeaderH = 40;
+
+            // Table column widths: 12%, 48%, 20%, 20%
+            const col1W = Math.round(frameW * 0.12);
+            const col2W = Math.round(frameW * 0.48);
+            const col3W = Math.round(frameW * 0.20);
+            const col4W = frameW - col1W - col2W - col3W;
+
+            const rowMetrics = rowItems.map((item) => {
+                mCtx.font = '700 14px Inter, sans-serif';
+                const descLines = getWrappedLines(mCtx, item.desc, col2W - 32);
+                const h = Math.max(41, descLines.length * 20 + 20);
+                return { ...item, descLines, h };
+            });
+
+            const rowsTotalH = rowMetrics.reduce((acc, r) => acc + r.h, 0);
+            const mainBoxH = bannerH + infoSectionH + tableHeaderH + rowsTotalH;
+            const bottomSectionH = 128;
+            const logicalHeight = frameY + mainBoxH + bottomSectionH + pad;
+
+            // Compute exact pixel dimensions for the selected Megapixels (2 MP, 4 MP, or 6 MP)
+            const targetPixels = selectedMegapixels * 1000000;
+            const scale = Math.sqrt(targetPixels / (baseWidth * logicalHeight));
+            const outWidth = Math.round(baseWidth * scale);
+            const outHeight = Math.round(logicalHeight * scale);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = outWidth;
+            canvas.height = outHeight;
+            const ctx = canvas.getContext('2d', { alpha: true });
+
+            // High-precision vector scaling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.scale(outWidth / baseWidth, outHeight / logicalHeight);
+
+            // 0. Pure White Background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, baseWidth, logicalHeight);
+
+            // Helper for crisp lines
+            const drawHLine = (x1, x2, y, color = '#0f172a', width = 1) => {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.moveTo(x1, y);
+                ctx.lineTo(x2, y);
+                ctx.stroke();
+            };
+
+            const drawVLine = (x, y1, y2, color = '#0f172a', width = 1) => {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.moveTo(x, y1);
+                ctx.lineTo(x, y2);
+                ctx.stroke();
+            };
+
+            let curY = frameY;
+
+            // 1. TOP BANNER (FACTURA PROFORMA + LOGO)
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '800 24px Inter, sans-serif';
+            ctx.textBaseline = 'top';
+            ctx.textAlign = 'left';
+            ctx.fillText('FACTURA', frameX + 24, curY + 18);
+            ctx.fillText('PROFORMA', frameX + 24, curY + 46);
+
+            // Draw Custom Logo or Default Vector Geometric Triangle Logo
+            const hasCustomLogo = !customLogo.classList.contains('hidden') && customLogo.src;
+            if (hasCustomLogo && customLogo.complete && customLogo.naturalWidth > 0) {
+                const maxLW = 140;
+                const maxLH = 60;
+                const ratio = Math.min(maxLW / customLogo.naturalWidth, maxLH / customLogo.naturalHeight);
+                const lw = customLogo.naturalWidth * ratio;
+                const lh = customLogo.naturalHeight * ratio;
+                ctx.drawImage(customLogo, frameX + frameW - 24 - lw, curY + (bannerH - lh) / 2, lw, lh);
+            } else {
+                // Draw crisp vector polygon logo directly
+                const logoSize = 56;
+                const lx = frameX + frameW - 24 - logoSize;
+                const ly = curY + (bannerH - logoSize) / 2;
+                const ls = logoSize / 500;
+                ctx.save();
+                ctx.translate(lx, ly);
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.moveTo(43 * ls, 144 * ls);
+                ctx.lineTo(457 * ls, 144 * ls);
+                ctx.lineTo(457 * ls, 172 * ls);
+                ctx.lineTo(332 * ls, 424 * ls);
+                ctx.lineTo(277 * ls, 424 * ls);
+                ctx.lineTo(398 * ls, 181 * ls);
+                ctx.lineTo(102 * ls, 181 * ls);
+                ctx.lineTo(223 * ls, 424 * ls);
+                ctx.lineTo(168 * ls, 424 * ls);
+                ctx.lineTo(43 * ls, 172 * ls);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            curY += bannerH;
+            drawHLine(frameX, frameX + frameW, curY, '#0f172a', 2);
+
+            // 2. CLIENT & SENDER HORIZONTAL SECTION
+            const midX = frameX + frameW / 2;
+
+            // Left: Client
+            ctx.fillStyle = '#475569';
+            ctx.font = '500 14px Inter, sans-serif';
+            ctx.fillText('Datos del cliente:', frameX + 24, curY + 18);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 20px Inter, sans-serif';
+            const clientLines = getWrappedLines(ctx, clientName, (frameW / 2) - 48);
+            clientLines.forEach((line, idx) => {
+                ctx.fillText(line, frameX + 24, curY + 44 + idx * 25);
+            });
+
+            // Vertical divider between Client & Sender
+            drawVLine(midX, curY + 14, curY + infoSectionH - 14, '#1e293b', 2);
+
+            // Right: Sender Data
+            const rightX = midX + 24;
+            let rY = curY + 16;
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 14px Inter, sans-serif';
+            ctx.fillText('Datos:', rightX, rY);
+            rY += 21;
+
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '600 14px Inter, sans-serif';
+            ctx.fillText(senderName, rightX, rY);
+            rY += 21;
+
+            ctx.fillStyle = '#475569';
+            ctx.font = '400 14px Inter, sans-serif';
+            ctx.fillText('Cel:', rightX, rY);
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 14px Inter, sans-serif';
+            ctx.fillText(senderPhone, rightX + 30, rY);
+            rY += 21;
+
+            ctx.fillStyle = '#475569';
+            ctx.font = '400 14px Inter, sans-serif';
+            ctx.fillText('Dirección:', rightX, rY);
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '600 14px Inter, sans-serif';
+            addrLines.forEach((line, idx) => {
+                ctx.fillText(line, rightX + 70, rY + idx * 19);
+            });
+
+            curY += infoSectionH;
+            drawHLine(frameX, frameX + frameW, curY, '#0f172a', 2);
+
+            // 3. ITEMS TABLE HEADER
+            const c1X = frameX;
+            const c2X = c1X + col1W;
+            const c3X = c2X + col2W;
+            const c4X = c3X + col3W;
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '600 14px Inter, sans-serif';
+            ctx.textBaseline = 'middle';
+
+            ctx.textAlign = 'center';
+            ctx.fillText('Cant.', c1X + col1W / 2, curY + tableHeaderH / 2);
+
+            ctx.textAlign = 'left';
+            ctx.fillText('Descripción', c2X + 16, curY + tableHeaderH / 2);
+
+            ctx.textAlign = 'center';
+            ctx.fillText('Precio uni.', c3X + col3W / 2, curY + tableHeaderH / 2);
+            ctx.fillText('TOTAL', c4X + col4W / 2, curY + tableHeaderH / 2);
+
+            drawVLine(c2X, curY, curY + tableHeaderH, '#334155', 1);
+            drawVLine(c3X, curY, curY + tableHeaderH, '#334155', 1);
+            drawVLine(c4X, curY, curY + tableHeaderH, '#334155', 1);
+
+            curY += tableHeaderH;
+            drawHLine(frameX, frameX + frameW, curY, '#1e293b', 1);
+
+            // 4. ITEMS TABLE ROWS
+            rowMetrics.forEach((row, idx) => {
+                // Alternating subtle background fill
+                ctx.fillStyle = (idx % 2 === 0) ? '#ebeef3' : '#f4f7fa';
+                ctx.fillRect(frameX, curY, frameW, row.h);
+
+                const rowMidY = curY + row.h / 2;
+
+                // Qty
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '700 14px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(row.qty, c1X + col1W / 2, rowMidY);
+
+                // Description
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                const totalTextH = row.descLines.length * 18;
+                const startDescY = curY + (row.h - totalTextH) / 2 + 2;
+                row.descLines.forEach((line, lIdx) => {
+                    ctx.fillText(line, c2X + 16, startDescY + lIdx * 18);
+                });
+
+                // Unit Price
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#334155';
+                ctx.font = '500 14px Inter, sans-serif';
+                ctx.fillText('C$', c3X + 12, rowMidY);
+                if (row.price !== '') {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillText(formatCurrencyNumber(parseFloat(row.price)), c3X + 36, rowMidY);
+                }
+
+                // Row Total
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '700 14px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(row.total, c4X + col4W / 2, rowMidY);
+
+                // Column dividers
+                drawVLine(c2X, curY, curY + row.h, '#334155', 1);
+                drawVLine(c3X, curY, curY + row.h, '#334155', 1);
+                drawVLine(c4X, curY, curY + row.h, '#334155', 1);
+
+                curY += row.h;
+                if (idx < rowMetrics.length - 1) {
+                    drawHLine(frameX, frameX + frameW, curY, '#334155', 1);
+                }
+            });
+
+            // Outer 2px border around Main Boxed Frame
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(frameX, frameY, frameW, mainBoxH);
+
+            // 5. BOTTOM SECTION: Footer Notes (Left) + Envío & TOTAL C$ (Right)
+            const shipRowH = 40;
+            const totalRowH = 48;
+
+            // Envío Box
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillRect(c4X, curY, col4W, shipRowH);
+
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '500 14px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Envío:', c4X - 12, curY + shipRowH / 2);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`C$ ${formatCurrencyNumber(shippingVal)}`, c4X + col4W / 2, curY + shipRowH / 2);
+
+            drawVLine(c4X, curY, curY + shipRowH, '#334155', 1);
+            drawVLine(frameX + frameW, curY, curY + shipRowH, '#334155', 1);
+            drawHLine(c3X, frameX + frameW, curY + shipRowH, '#334155', 1);
+
+            // TOTAL C$ Box
+            const totalY = curY + shipRowH;
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(c4X, totalY, col4W, totalRowH);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(c4X, totalY, col4W, totalRowH);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '800 18px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('TOTAL C$', c4X - 12, totalY + totalRowH / 2);
+
+            ctx.textAlign = 'center';
+            ctx.fillText(grandTotalText, c4X + col4W / 2, totalY + totalRowH / 2);
+
+            // Left Footer Texts (Fecha, Nota de envío, Validez)
+            let fY = curY + 26;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 14px Inter, sans-serif';
+            ctx.fillText(`Fecha: ${invoiceDate}`, frameX, fY);
+
+            fY += 24;
+            ctx.fillText(`Nota de envío: ${shippingNote}`, frameX, fY);
+
+            fY += 32;
+            ctx.fillStyle = '#334155';
+            ctx.font = '500 12px Inter, sans-serif';
+            ctx.fillText('Proforma válida por 15 días a partir de la fecha de emisión', frameX, fY);
+
+            return canvas;
+        }
+
+        // Precompute CRC32 lookup table for valid PNG chunks
+        const CRC32_TABLE = (() => {
+            const table = new Uint32Array(256);
+            for (let n = 0; n < 256; n++) {
+                let c = n;
+                for (let k = 0; k < 8; k++) {
+                    c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+                }
+                table[n] = c >>> 0;
+            }
+            return table;
+        })();
+
+        function computeCrc32(bytes, start, length) {
+            let crc = 0xffffffff;
+            const end = start + length;
+            for (let i = start; i < end; i++) {
+                crc = CRC32_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+            }
+            return (crc ^ 0xffffffff) >>> 0;
+        }
+
+        // BitWriter helper for Fixed Huffman DEFLATE (used when 2 MP 8-bit image must stay <= 1 MB)
+        class DeflateBitWriter {
+            constructor(initialCapacity = 524288) {
+                this.buf = new Uint8Array(initialCapacity);
+                this.pos = 0;
+                this.bitBuf = 0;
+                this.bitCount = 0;
+            }
+            ensure(extra) {
+                if (this.pos + extra >= this.buf.length) {
+                    const next = new Uint8Array(Math.max(this.buf.length * 2, this.pos + extra + 65536));
+                    next.set(this.buf);
+                    this.buf = next;
+                }
+            }
+            writeBits(val, count) {
+                this.bitBuf |= (val << this.bitCount);
+                this.bitCount += count;
+                while (this.bitCount >= 8) {
+                    if (this.pos >= this.buf.length) this.ensure(65536);
+                    this.buf[this.pos++] = this.bitBuf & 0xff;
+                    this.bitBuf >>>= 8;
+                    this.bitCount -= 8;
+                }
+            }
+            writeHuffmanRev(code, len) {
+                let rev = 0;
+                for (let i = 0; i < len; i++) {
+                    rev = (rev << 1) | ((code >>> i) & 1);
+                }
+                this.writeBits(rev, len);
+            }
+            writeFixedSymbol(sym) {
+                if (sym <= 143) {
+                    this.writeHuffmanRev(0x30 + sym, 8);
+                } else if (sym <= 255) {
+                    this.writeHuffmanRev(0x190 + (sym - 144), 9);
+                } else if (sym <= 279) {
+                    this.writeHuffmanRev(sym - 256, 7);
+                } else {
+                    this.writeHuffmanRev(0xC0 + (sym - 280), 8);
+                }
+            }
+            writeFixedLength(len) {
+                const table = [
+                    [257, 0, 3], [258, 0, 4], [259, 0, 5], [260, 0, 6],
+                    [261, 0, 7], [262, 0, 8], [263, 0, 9], [264, 0, 10],
+                    [265, 1, 11], [266, 1, 13], [267, 1, 15], [268, 1, 17],
+                    [269, 2, 19], [270, 2, 23], [271, 2, 27], [272, 2, 31],
+                    [273, 3, 35], [274, 3, 43], [275, 3, 51], [276, 3, 59],
+                    [277, 4, 67], [278, 4, 83], [279, 4, 99], [280, 4, 115],
+                    [281, 5, 131], [282, 5, 163], [283, 5, 195], [284, 5, 227],
+                    [285, 0, 258]
+                ];
+                for (let i = table.length - 1; i >= 0; i--) {
+                    if (len >= table[i][2]) {
+                        this.writeFixedSymbol(table[i][0]);
+                        if (table[i][1] > 0) {
+                            this.writeBits(len - table[i][2], table[i][1]);
+                        }
+                        return;
+                    }
+                }
+            }
+            flushByteAlign() {
+                if (this.bitCount > 0) {
+                    this.ensure(4);
+                    this.buf[this.pos++] = this.bitBuf & 0xff;
+                    this.bitBuf = 0;
+                    this.bitCount = 0;
+                }
+            }
+        }
+
+        // Lossless Fixed-Huffman RLE ZLIB encoder for 8-bit scanlines (keeps 2 MP 8-bit image well under 1 MB)
+        function createLosslessRleZlibStream(scanlines) {
+            const bw = new DeflateBitWriter(Math.min(scanlines.length, 1024 * 1024));
+            bw.ensure(2);
+            bw.buf[bw.pos++] = 0x78; // ZLIB CMF
+            bw.buf[bw.pos++] = 0x9c; // ZLIB FLG
+
+            // Begin single final DEFLATE block with Fixed Huffman codes (BFINAL=1, BTYPE=01)
+            bw.writeBits(1, 1);
+            bw.writeBits(1, 2);
+
+            const MOD_ADLER = 65521;
+            let s1 = 1;
+            let s2 = 0;
+            const n = scanlines.length;
+
+            // Compute Adler-32 over raw 8-bit scanlines
+            let idx = 0;
+            while (idx < n) {
+                const batch = Math.min(n - idx, 3800);
+                for (let i = 0; i < batch; i++) {
+                    s1 += scanlines[idx++];
+                    s2 += s1;
+                }
+                s1 %= MOD_ADLER;
+                s2 %= MOD_ADLER;
+            }
+
+            // Encode literals + RLE repeats (distance = 1) losslessly
+            let i = 0;
+            while (i < n) {
+                const b = scanlines[i];
+                bw.writeFixedSymbol(b);
+                i++;
+
+                let run = 0;
+                const maxRun = Math.min(258, n - i);
+                while (run < maxRun && scanlines[i + run] === b) {
+                    run++;
+                }
+
+                if (run >= 3) {
+                    bw.writeFixedLength(run);
+                    // Distance code 0 (distance = 1) is 5 zero bits in Fixed Huffman
+                    bw.writeHuffmanRev(0, 5);
+                    i += run;
+                }
+            }
+
+            // End of block symbol (256)
+            bw.writeFixedSymbol(256);
+            bw.flushByteAlign();
+
+            // Append Adler-32 checksum (big-endian)
+            const adler = ((s2 << 16) | s1) >>> 0;
+            bw.ensure(4);
+            bw.buf[bw.pos++] = (adler >>> 24) & 0xff;
+            bw.buf[bw.pos++] = (adler >>> 16) & 0xff;
+            bw.buf[bw.pos++] = (adler >>> 8) & 0xff;
+            bw.buf[bw.pos++] = adler & 0xff;
+
+            return bw.buf.subarray(0, bw.pos);
+        }
+
+        // Uncompressed ZLIB Store stream for 8-bit scanlines (when raw 8-bit data fits inside max MB budget)
+        function createUncompressedStoreZlibStream(scanlines) {
+            const rawLen = scanlines.length;
+            const maxBlockSize = 65535;
+            const numBlocks = Math.ceil(rawLen / maxBlockSize);
+            const zlibLength = 2 + (numBlocks * 5) + rawLen + 4;
+
+            const out = new Uint8Array(zlibLength);
+            const view = new DataView(out.buffer);
+            let offset = 0;
+
+            out[offset++] = 0x78;
+            out[offset++] = 0x01;
+
+            const MOD_ADLER = 65521;
+            let s1 = 1;
+            let s2 = 0;
+            let remaining = rawLen;
+            let srcPos = 0;
+
+            while (remaining > 0) {
+                const blockLen = Math.min(maxBlockSize, remaining);
+                const isLast = (remaining <= maxBlockSize) ? 1 : 0;
+                out[offset++] = isLast;
+                view.setUint16(offset, blockLen, true); offset += 2;
+                view.setUint16(offset, (~blockLen) & 0xffff, true); offset += 2;
+
+                let left = blockLen;
+                while (left > 0) {
+                    const batch = Math.min(left, 3800);
+                    for (let i = 0; i < batch; i++) {
+                        const b = scanlines[srcPos++];
+                        out[offset++] = b;
+                        s1 += b;
+                        s2 += s1;
+                    }
+                    s1 %= MOD_ADLER;
+                    s2 %= MOD_ADLER;
+                    left -= batch;
+                }
+                remaining -= blockLen;
+            }
+
+            const adler = ((s2 << 16) | s1) >>> 0;
+            view.setUint32(offset, adler, false);
+            return out;
+        }
+
+        // Encode Canvas into PNG supporting the exact BPP steps (2, 4, 8, 16, or 24 bpp)
+        // Uses PNG Sub/Up scanline filtering + lossless RLE Huffman without artificial padding for maximum efficiency
+        function encodeEfficientVariableBppPng(canvas, bpp) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const ctx = canvas.getContext('2d');
+            const rgba = ctx.getImageData(0, 0, width, height).data;
+
+            const activeBpp = BPP_STEPS.includes(Number(bpp)) ? Number(bpp) : 4;
+
+            let pngBitDepth = 8;
+            let pngColorType = 3; // 3 = Indexed, 0 = Grayscale (16 bpp), 2 = Truecolor RGB (24 bpp)
+            let paletteRGB = null;
+            let scanlines = null;
+
+            if (activeBpp <= 8) {
+                pngBitDepth = activeBpp;
+                pngColorType = 3;
+                const numColors = 1 << activeBpp;
+                const containerColors = 1 << pngBitDepth;
+                paletteRGB = new Uint8Array(containerColors * 3);
+
+                // Base UI colors + interpolated anti-aliasing steps up to numColors for razor-sharp vector text
+                const coreColors = [
+                    [255, 255, 255], // Pure White
+                    [15, 23, 42],    // Slate-900 (primary text & borders)
+                    [203, 213, 225], // Slate-300 (grand total fill)
+                    [235, 238, 243], // Odd row fill
+                    [30, 41, 59],    // Slate-800
+                    [51, 65, 85],    // Slate-700
+                    [71, 85, 105],   // Slate-600
+                    [244, 247, 250], // Even row fill
+                    [241, 245, 249], // Shipping fill
+                    [0, 0, 0]        // Black logo
+                ];
+
+                const activePalette = [];
+                for (let i = 0; i < Math.min(numColors, coreColors.length); i++) {
+                    activePalette.push(coreColors[i]);
+                }
+                while (activePalette.length < numColors) {
+                    const t = activePalette.length / Math.max(1, numColors - 1);
+                    const v = Math.round(15 + t * 240);
+                    activePalette.push([v, Math.min(255, v + 3), Math.min(255, v + 8)]);
+                }
+
+                for (let i = 0; i < containerColors; i++) {
+                    const c = activePalette[Math.min(i, activePalette.length - 1)];
+                    paletteRGB[i * 3] = c[0];
+                    paletteRGB[i * 3 + 1] = c[1];
+                    paletteRGB[i * 3 + 2] = c[2];
+                }
+
+                const colorCache = new Map();
+                const findNearestIdx = (r, g, b) => {
+                    const key = (r << 16) | (g << 8) | b;
+                    const cached = colorCache.get(key);
+                    if (cached !== undefined) return cached;
+                    let bestIdx = 0;
+                    let bestDist = Infinity;
+                    for (let i = 0; i < numColors; i++) {
+                        const dr = r - paletteRGB[i * 3];
+                        const dg = g - paletteRGB[i * 3 + 1];
+                        const db = b - paletteRGB[i * 3 + 2];
+                        const dist = dr * dr + dg * dg + db * db;
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestIdx = i;
+                            if (dist === 0) break;
+                        }
+                    }
+                    colorCache.set(key, bestIdx);
+                    return bestIdx;
+                };
+
+                const pixelsPerByte = 8 / pngBitDepth;
+                const packedRowBytes = Math.ceil(width / pixelsPerByte);
+                const rowStride = 1 + packedRowBytes;
+                scanlines = new Uint8Array(rowStride * height);
+
+                let dstOffset = 0;
+                for (let y = 0; y < height; y++) {
+                    scanlines[dstOffset++] = 0; // Filter 0 (optimal for RLE on horizontal invoice bands)
+                    let srcOffset = y * width * 4;
+
+                    if (pngBitDepth === 2) {
+                        let x = 0;
+                        while (x < width) {
+                            let byteVal = 0;
+                            for (let p = 0; p < 4; p++) {
+                                let idx = 0;
+                                if (x < width) {
+                                    idx = findNearestIdx(rgba[srcOffset], rgba[srcOffset + 1], rgba[srcOffset + 2]) & 0x03;
+                                    srcOffset += 4;
+                                    x++;
+                                }
+                                byteVal = (byteVal << 2) | idx;
+                            }
+                            scanlines[dstOffset++] = byteVal;
+                        }
+                    } else if (pngBitDepth === 4) {
+                        let x = 0;
+                        while (x < width) {
+                            const hi = findNearestIdx(rgba[srcOffset], rgba[srcOffset + 1], rgba[srcOffset + 2]) & 0x0f;
+                            srcOffset += 4;
+                            x++;
+                            let lo = 0;
+                            if (x < width) {
+                                lo = findNearestIdx(rgba[srcOffset], rgba[srcOffset + 1], rgba[srcOffset + 2]) & 0x0f;
+                                srcOffset += 4;
+                                x++;
+                            }
+                            scanlines[dstOffset++] = (hi << 4) | lo;
+                        }
+                    } else {
+                        for (let x = 0; x < width; x++) {
+                            scanlines[dstOffset++] = findNearestIdx(rgba[srcOffset], rgba[srcOffset + 1], rgba[srcOffset + 2]) & 0xff;
+                            srcOffset += 4;
+                        }
+                    }
+                }
+            } else if (activeBpp === 16) {
+                // 16 bpp: 16-bit Grayscale PNG container with Up filter (Filter 2) for high RLE efficiency
+                pngBitDepth = 16;
+                pngColorType = 0;
+                const rowBytes = width * 2;
+                const rowStride = 1 + rowBytes;
+                scanlines = new Uint8Array(rowStride * height);
+                const prevRow = new Uint8Array(rowBytes);
+
+                let dstOffset = 0;
+                for (let y = 0; y < height; y++) {
+                    scanlines[dstOffset++] = 2; // Filter 2 (Up) turns vertical repeats into 0x00 runs
+                    let srcOffset = y * width * 4;
+                    for (let x = 0; x < width; x++) {
+                        const r = rgba[srcOffset];
+                        const g = rgba[srcOffset + 1];
+                        const b = rgba[srcOffset + 2];
+                        srcOffset += 4;
+                        const lum16 = Math.round((0.299 * r + 0.587 * g + 0.114 * b) * 257);
+                        const hi = (lum16 >>> 8) & 0xff;
+                        const lo = lum16 & 0xff;
+                        const bIdx = x * 2;
+                        scanlines[dstOffset++] = (hi - prevRow[bIdx]) & 0xff;
+                        scanlines[dstOffset++] = (lo - prevRow[bIdx + 1]) & 0xff;
+                        prevRow[bIdx] = hi;
+                        prevRow[bIdx + 1] = lo;
+                    }
+                }
+            } else {
+                // 24 bpp: Truecolor RGB with Up filter (Filter 2) so identical rows compress into compact zero runs
+                pngBitDepth = 8;
+                pngColorType = 2; // RGB Truecolor
+                const rowBytes = width * 3;
+                const rowStride = 1 + rowBytes;
+                scanlines = new Uint8Array(rowStride * height);
+                const prevRow = new Uint8Array(rowBytes);
+
+                let dstOffset = 0;
+                for (let y = 0; y < height; y++) {
+                    scanlines[dstOffset++] = 2; // Filter 2 (Up)
+                    let srcOffset = y * width * 4;
+                    for (let x = 0; x < width; x++) {
+                        const r = rgba[srcOffset];
+                        const g = rgba[srcOffset + 1];
+                        const b = rgba[srcOffset + 2];
+                        srcOffset += 4;
+                        const bIdx = x * 3;
+                        scanlines[dstOffset++] = (r - prevRow[bIdx]) & 0xff;
+                        scanlines[dstOffset++] = (g - prevRow[bIdx + 1]) & 0xff;
+                        scanlines[dstOffset++] = (b - prevRow[bIdx + 2]) & 0xff;
+                        prevRow[bIdx] = r;
+                        prevRow[bIdx + 1] = g;
+                        prevRow[bIdx + 2] = b;
+                    }
+                }
+            }
+
+            const zlibData = createLosslessRleZlibStream(scanlines);
+            const plteChunkTotal = paletteRGB ? (12 + paletteRGB.length) : 0;
+            const totalSize = 8 + 25 + plteChunkTotal + (12 + zlibData.length) + 12;
+
+            const buffer = new Uint8Array(totalSize);
+            const view = new DataView(buffer.buffer);
+            let offset = 0;
+
+            // 1. PNG Signature
+            buffer.set([137, 80, 78, 71, 13, 10, 26, 10], offset);
+            offset += 8;
+
+            // 2. IHDR Chunk
+            view.setUint32(offset, 13, false); offset += 4;
+            const ihdrStart = offset;
+            buffer.set([73, 72, 68, 82], offset); offset += 4; // "IHDR"
+            view.setUint32(offset, width, false); offset += 4;
+            view.setUint32(offset, height, false); offset += 4;
+            buffer[offset++] = pngBitDepth;
+            buffer[offset++] = pngColorType;
+            buffer[offset++] = 0;
+            buffer[offset++] = 0;
+            buffer[offset++] = 0;
+            view.setUint32(offset, computeCrc32(buffer, ihdrStart, 17), false);
+            offset += 4;
+
+            // 3. PLTE Chunk (when indexed)
+            if (paletteRGB) {
+                view.setUint32(offset, paletteRGB.length, false); offset += 4;
+                const plteStart = offset;
+                buffer.set([80, 76, 84, 69], offset); offset += 4; // "PLTE"
+                buffer.set(paletteRGB, offset);
+                offset += paletteRGB.length;
+                view.setUint32(offset, computeCrc32(buffer, plteStart, 4 + paletteRGB.length), false);
+                offset += 4;
+            }
+
+            // 4. IDAT Chunk (pure compressed scanlines, zero padding bytes)
+            view.setUint32(offset, zlibData.length, false); offset += 4;
+            const idatStart = offset;
+            buffer.set([73, 68, 65, 84], offset); offset += 4; // "IDAT"
+            buffer.set(zlibData, offset);
+            offset += zlibData.length;
+            view.setUint32(offset, computeCrc32(buffer, idatStart, 4 + zlibData.length), false);
+            offset += 4;
+
+            // 5. IEND Chunk
+            view.setUint32(offset, 0, false); offset += 4;
+            const iendStart = offset;
+            buffer.set([73, 69, 78, 68], offset); offset += 4; // "IEND"
+            view.setUint32(offset, computeCrc32(buffer, iendStart, 4), false);
+            offset += 4;
+
+            return new Blob([buffer], { type: 'image/png' });
+        }
+
+        // Export PNG using selected MP Resolution (1, 2, or 4 MP) and selected BPP (2, 4, 8, 16, or 24 bpp)
+        async function exportProformaPng() {
+            try {
+                showToast(`Renderizando factura vectorial nítida (${selectedMegapixels} MP · ${selectedBpp} bpp)...`, 4000);
+
+                // Allow UI toast to render before intensive encoding
+                await new Promise((resolve) => setTimeout(resolve, 50));
+
+                const canvas = await captureInvoiceCanvas();
+                const pngBlob = encodeEfficientVariableBppPng(canvas, selectedBpp);
+                const sizeBytes = pngBlob.size;
+                const sizeLabel = sizeBytes < 1024 * 1024
+                    ? `${Math.round(sizeBytes / 1024)}KB`
+                    : `${(sizeBytes / (1024 * 1024)).toFixed(2)}MB`;
+
+                // Update sidebar summary with exact resulting weight
+                if (summaryRawSize) {
+                    summaryRawSize.textContent = `${sizeLabel} (${selectedBpp} bpp)`;
+                }
+
+                const blobUrl = URL.createObjectURL(pngBlob);
+                const link = document.createElement('a');
+                link.download = `Factura-Proforma-${selectedMegapixels}MP-${selectedBpp}bpp-${sizeLabel}-${Date.now().toString().slice(-4)}.png`;
+                link.href = blobUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                showToast(`¡PNG descargado con éxito (${selectedMegapixels} MP · ${selectedBpp} bpp · ${sizeLabel})!`, 3800);
+            } catch (err) {
+                console.error('Error al exportar PNG:', err);
+                showToast('Ocurrió un error al exportar la imagen PNG.');
+            }
+        }
+
+        document.getElementById('btn-download-png').addEventListener('click', exportProformaPng);
+        document.getElementById('btn-sidebar-download').addEventListener('click', exportProformaPng);
+
+        // Add new item row
+        document.getElementById('btn-add-row').addEventListener('click', () => {
+            const newRow = createRowElement({ qty: '', description: '', price: '' });
+            rowsContainer.appendChild(newRow);
+            const qtyInput = newRow.querySelector('.row-qty');
+            if (qtyInput) qtyInput.focus();
+        });
+
+        // Recalculate when shipping changes
+        shippingInput.addEventListener('input', calculateTotals);
+
+        // Custom Logo Upload Handler
+        const logoFileInput = document.getElementById('logo-file-input');
+        const defaultLogo = document.getElementById('default-logo');
+        const customLogo = document.getElementById('custom-logo');
+
+        document.getElementById('btn-upload-logo').addEventListener('click', () => {
+            logoFileInput.click();
+        });
+        document.getElementById('logo-container').addEventListener('click', () => {
+            logoFileInput.click();
+        });
+
+        logoFileInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                customLogo.src = event.target.result;
+                customLogo.classList.remove('hidden');
+                defaultLogo.classList.add('hidden');
+                saveAppState();
+                showToast('Logo actualizado correctamente.');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Generate crisp PNG icons (192x192 & 512x512) with transparent background matching the exact uploaded logo
+        function generateAppIconDataUrl(size = 512) {
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            const ctx = c.getContext('2d');
+
+            // Ensure background is 100% transparent (no white background)
+            ctx.clearRect(0, 0, size, size);
+
+            const s = size / 500;
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.moveTo(43 * s, 144 * s);
+            ctx.lineTo(457 * s, 144 * s);
+            ctx.lineTo(457 * s, 172 * s);
+            ctx.lineTo(332 * s, 424 * s);
+            ctx.lineTo(277 * s, 424 * s);
+            ctx.lineTo(398 * s, 181 * s);
+            ctx.lineTo(102 * s, 181 * s);
+            ctx.lineTo(223 * s, 424 * s);
+            ctx.lineTo(168 * s, 424 * s);
+            ctx.lineTo(43 * s, 172 * s);
+            ctx.closePath();
+            ctx.fill();
+
+            return c.toDataURL('image/png');
+        }
+
+        const icon192 = generateAppIconDataUrl(192);
+        const icon512 = generateAppIconDataUrl(512);
+
+        // Set apple-touch-icon and favicon dynamically
+        document.getElementById('apple-touch-icon-link').href = icon192;
+        document.getElementById('favicon-link').href = icon192;
+
+        // Build standard manifest content so browser menu "Install app" / "Add to Home Screen" works out of the box
+        function getManifestJsonObject() {
+            const baseUrl = window.location.href.split('#')[0].split('?')[0];
+            const dirUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+            return {
+                name: "Generador de Factura Proforma",
+                short_name: "Proforma",
+                description: "Generador de Facturas Proforma con exportación a PNG.",
+                start_url: baseUrl,
+                scope: dirUrl,
+                display: "standalone",
+                orientation: "any",
+                background_color: "transparent",
+                theme_color: "#0f172a",
+                icons: [
+                    {
+                        src: icon192,
+                        sizes: "192x192",
+                        type: "image/png",
+                        purpose: "any"
+                    },
+                    {
+                        src: icon512,
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any"
+                    }
+                ]
+            };
+        }
+
+        // Inject manifest dynamically and register Service Worker if present in repository
+        async function initPwaCapabilities() {
+            try {
+                const res = await fetch('./manifest.json', { method: 'HEAD' });
+                if (!res.ok) throw new Error('Using embedded manifest');
+            } catch (e) {
+                const manifestBlob = new Blob([JSON.stringify(getManifestJsonObject(), null, 2)], { type: 'application/manifest+json' });
+                document.getElementById('pwa-manifest-link').href = URL.createObjectURL(manifestBlob);
+            }
+
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            }
+        }
+
+        // Initialize table and PWA on load
+        window.onload = function () {
+            const saved = loadAppState();
+            const rowsToRender = (saved && Array.isArray(saved.rows) && saved.rows.length > 0)
+                ? saved.rows
+                : initialRows;
+
+            rowsToRender.forEach((row, index) => {
+                rowsContainer.appendChild(createRowElement(row, index));
+            });
+
+            if (saved && saved.shipping !== undefined) {
+                shippingInput.value = saved.shipping;
+            }
+            if (saved && saved.customLogoSrc) {
+                customLogo.src = saved.customLogoSrc;
+                customLogo.classList.remove('hidden');
+                defaultLogo.classList.add('hidden');
+            }
+            if (saved && saved.megapixels) {
+                selectedMegapixels = MP_STEPS.includes(Number(saved.megapixels)) ? Number(saved.megapixels) : 4;
+            }
+            if (saved && saved.bpp) {
+                selectedBpp = BPP_STEPS.includes(Number(saved.bpp)) ? Number(saved.bpp) : 4;
+            }
+
+            updateResolutionUI(selectedMegapixels);
+            calculateTotals();
+            initPwaCapabilities();
+        };
+    </script>
+</body>
+</html>
