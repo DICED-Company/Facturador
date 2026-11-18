@@ -1,1354 +1,1452 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
+<html lang="es"><head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>Factura Proforma</title>
-    <meta name="theme-color" content="#0f172a">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Proforma - Generador</title>
+    
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Proforma">
     <meta name="mobile-web-app-capable" content="yes">
-    <link id="pwa-apple-icon" rel="apple-touch-icon">
-    <link id="pwa-favicon" rel="icon" type="image/png">
-    <link id="pwa-manifest" rel="manifest">
-
-    <!-- Tailwind CSS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Proforma">
+    <meta name="theme-color" content="#0f172a">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
         body {
-            background-color: #f1f5f9;
-            color: #0f172a;
-            margin: 0;
-            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-
-        /* Editable field highlights without breaking layout */
-        [contenteditable="true"] {
-            outline: none;
-            border-radius: 3px;
-            transition: background-color 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        [contenteditable="true"]:hover {
-            background-color: rgba(37, 99, 235, 0.06);
-        }
-
-        [contenteditable="true"]:focus {
-            background-color: rgba(37, 99, 235, 0.1);
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
-        }
-
-        /* Clean number inputs inside table */
         .invoice-input {
-            background: transparent;
-            border: none;
-            outline: none;
             width: 100%;
+            outline: none;
+            background: transparent;
             font-family: inherit;
-            font-size: inherit;
             color: inherit;
-            padding: 2px 4px;
-            border-radius: 3px;
-            transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
-
-        .invoice-input:hover {
-            background-color: rgba(37, 99, 235, 0.06);
-        }
-
-        .invoice-input:focus {
-            background-color: rgba(37, 99, 235, 0.1);
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
-        }
-
-        /* Hide spin buttons in number inputs */
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
+        .invoice-input::-webkit-outer-spin-button,
+        .invoice-input::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        input[type="number"] {
+        .invoice-input[type=number] {
             -moz-appearance: textfield;
         }
-
-        /* Horizontal invoice sheet fixed width for clean aspect ratio */
-        .invoice-sheet {
-            width: 820px;
-            min-width: 820px;
-            background-color: #ffffff;
-            color: #111827;
+        [contenteditable="true"]:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+            border-radius: 3px;
         }
-
-        /* Custom range slider styling */
-        input[type="range"].bpp-slider {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 999px;
-            outline: none;
+        [contenteditable="true"]:focus {
+            background-color: rgba(59, 130, 246, 0.08);
+            outline: 1px dashed #3b82f6;
+            border-radius: 3px;
         }
-
-        input[type="range"].bpp-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #059669;
-            border: 3px solid #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-            cursor: pointer;
-        }
-
-        input[type="range"].bpp-slider::-moz-range-thumb {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #059669;
-            border: 3px solid #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-            cursor: pointer;
+        #settings-sidebar,
+        #history-sidebar {
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
 
-    <!-- Top Control Bar -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-5xl mx-auto px-4 py-3.5">
-            <div class="flex flex-wrap items-center justify-center sm:justify-between gap-3">
-                <div class="flex flex-wrap items-center justify-center gap-2.5">
-                    <button id="btn-add-row" type="button"
-                        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                        </svg>
-                        <span>Agregar Fila</span>
-                    </button>
-
-                    <button id="btn-download-png" type="button"
-                        class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm transition cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
-                        </svg>
-                        <span id="btn-download-label">Descargar PNG (4 MP)</span>
-                    </button>
-                </div>
-
-                <button id="btn-change-logo" type="button"
-                    class="inline-flex items-center gap-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 font-medium text-xs px-3.5 py-2 rounded-lg transition cursor-pointer">
-                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
-                    </svg>
-                    <span>Cambiar Logo</span>
+    <!-- Barra Superior de Acciones -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 shadow-sm">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-center sm:justify-between gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-center">
+                <button id="btn-add-row" type="button" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 sm:px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    Agregar Fila
                 </button>
-                <input id="logo-file-input" type="file" accept="image/*" class="hidden">
+                <button id="btn-export-png" type="button" class="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-4 sm:px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Descargar PNG
+                </button>
             </div>
-
-            <!-- Helper instructions & Local DB Status -->
-            <div class="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
-                <p class="text-center sm:text-left text-slate-500 text-xs leading-relaxed">
-                    Haz clic en los datos del cliente, productos, fecha o montos para editarlos. Los textos fijos están protegidos.
-                </p>
-                <div id="db-status-badge" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0 select-none">
-                    <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span id="db-status-text">BD Local: Sincronizada</span>
-                </div>
+            <div class="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <span id="res-badge-top" class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">1.5 MP · 24 bpp</span>
             </div>
         </div>
     </header>
 
-    <!-- Main Layout with Invoice Viewport & Right Configuration Sidebar -->
-    <div class="flex-1 flex flex-col lg:flex-row items-start justify-center gap-6 max-w-[1260px] w-full mx-auto px-3 sm:px-6 py-6">
+    <!-- Botón Flotante Izquierdo: Historial de Facturas (Máx. 5) -->
+    <button id="btn-toggle-history" type="button" class="fixed bottom-16 left-4 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
+        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>Historial</span>
+        <span id="history-count-badge" class="bg-blue-600 text-white text-[11px] font-extrabold px-1.5 py-0.5 rounded-full leading-none">0/5</span>
+    </button>
 
-        <!-- Horizontal Scroll Wrapper for Mobile / Exact Sheet View -->
-        <main class="w-full overflow-x-auto pb-6 flex justify-start lg:justify-center">
-            <div id="invoice-sheet" class="invoice-sheet p-7 sm:p-9 shadow-xl rounded-sm border border-slate-300">
+    <!-- Botón Flotante Derecho: Ajustes de Resolución en Móvil / Tablet -->
+    <button id="btn-toggle-settings" type="button" class="fixed bottom-16 right-4 z-40 lg:hidden bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <span>Resolución / MP</span>
+    </button>
 
-                <!-- Main Framed Box (Header + Horizontal Client/Sender Info + Product Table) -->
-                <div class="border-2 border-slate-900">
+    <!-- Fondos oscuros para los menús laterales -->
+    <div id="history-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden"></div>
+    <div id="settings-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden hidden"></div>
 
-                    <!-- Header Row -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b-2 border-slate-900">
-                        <div class="select-none">
-                            <h1 class="text-2xl font-extrabold tracking-tight leading-tight text-slate-900 uppercase">
-                                FACTURA<br>PROFORMA
-                            </h1>
-                        </div>
-
-                        <!-- Top-Right Logo (Increased 30%: 73x73px) -->
-                        <div id="logo-container" title="Clic para cambiar logo"
-                            class="cursor-pointer flex items-center justify-center select-none">
-                            <svg id="default-logo" width="73" height="73" viewBox="0 0 100 100" class="block">
-                                <!-- Open-bottom trapezoid/triangle matching reference image -->
-                                <path d="M 8 18 L 92 18 L 92 26 L 63 86 L 52 86 L 77 31 L 23 31 L 48 86 L 37 86 L 8 26 Z" fill="#000000"/>
-                            </svg>
-                            <img id="custom-logo" src="" alt="Logo" class="hidden max-h-[73px] max-w-[160px] object-contain">
-                        </div>
-                    </div>
-
-                    <!-- Horizontal Client & Sender Info Section -->
-                    <div class="grid grid-cols-12 border-b-2 border-slate-900 bg-white">
-                        <!-- Left: Client Data -->
-                        <div class="col-span-6 p-5 relative">
-                            <p class="text-sm font-medium text-slate-600 mb-1.5 select-none">Datos del cliente:</p>
-                            <div id="client-name" contenteditable="true" spellcheck="false"
-                                class="text-xl font-bold text-slate-900 min-h-[2rem] py-0.5 break-words">Brenda Díaz</div>
-                            <!-- Inner vertical divider matching reference -->
-                            <div class="absolute right-0 top-3 bottom-3 w-[1.5px] bg-slate-800"></div>
-                        </div>
-
-                        <!-- Right: Sender Data -->
-                        <div class="col-span-6 p-5 text-sm space-y-1.5">
-                            <p class="font-bold text-slate-900 select-none">Datos:</p>
-                            <div id="sender-name" contenteditable="true" spellcheck="false"
-                                class="font-semibold text-slate-800 break-words">Darwing Moreno</div>
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-slate-700 font-medium select-none">Cel:</span>
-                                <span id="sender-phone" contenteditable="true" spellcheck="false"
-                                    class="font-bold text-slate-900">5808 1576</span>
-                            </div>
-                            <div class="flex items-start gap-1">
-                                <span class="text-slate-700 font-medium select-none shrink-0">Dirección:</span>
-                                <div id="sender-address" contenteditable="true" spellcheck="false"
-                                    class="font-semibold text-slate-900 leading-snug break-words">Nagarote, Casino Toruño 2 y media al sur</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Products Table (Columns: 10% | 50% | 20% | 20% -> Last two = 40%) -->
-                    <table class="w-full border-collapse table-fixed">
-                        <thead>
-                            <tr class="border-b-2 border-slate-900 bg-white text-sm font-bold text-slate-900 select-none">
-                                <th class="w-[10%] py-2.5 px-2 text-center border-r border-slate-700">Cant.</th>
-                                <th class="w-[50%] py-2.5 px-4 text-left border-r border-slate-700">Descripción</th>
-                                <th class="w-[20%] py-2.5 px-3 text-center border-r border-slate-700">Precio uni.</th>
-                                <th class="w-[20%] py-2.5 px-3 text-center">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody id="invoice-rows" class="divide-y divide-slate-600 text-sm">
-                            <!-- Rows injected dynamically -->
-                        </tbody>
-                    </table>
+    <!-- PANEL LATERAL IZQUIERDO: HISTORIAL DE FACTURAS (Máx. 5) -->
+    <aside id="history-sidebar" class="fixed top-0 left-0 h-full w-80 sm:w-96 bg-white border-r border-slate-200 shadow-2xl z-50 -translate-x-full flex flex-col">
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
+                <div>
+                    <h2 class="text-base font-extrabold leading-tight">Historial de Facturas</h2>
+                    <p class="text-[11px] text-slate-300">Se guardan las últimas 5 exportadas</p>
+                </div>
+            </div>
+            <button id="btn-close-history" type="button" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
 
-                <!-- Symmetric Shipping & Grand Total Section (Aligned 60% / 20% / 20% with Table Above) -->
-                <div class="w-full">
-                    <table class="w-full border-collapse table-fixed">
-                        <tbody>
-                            <!-- Shipping Row -->
-                            <tr>
-                                <td class="w-[60%]"></td>
-                                <td class="w-[20%] py-2.5 px-3 text-right font-semibold text-slate-800 border-b border-slate-700 select-none">
-                                    Envío:
-                                </td>
-                                <td class="w-[20%] py-2.5 px-3 bg-[#f1f5f9] border-l-2 border-r-2 border-b border-slate-800 font-bold text-slate-900">
-                                    <div class="flex items-center justify-center">
-                                        <span class="mr-1 select-none">C$</span>
-                                        <input id="shipping-input" type="number" step="any" min="0" value="150"
-                                            class="invoice-input text-center font-bold w-20" aria-label="Costo de envío">
+        <!-- Buscador dentro del historial -->
+        <div class="p-3.5 border-b border-slate-200 bg-slate-50">
+            <div class="relative">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input id="history-search-input" type="text" placeholder="Buscar por cliente, fecha o producto..." class="w-full pl-9 pr-3 py-2 text-xs font-medium bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-blue-600 text-slate-800">
+            </div>
+        </div>
+
+        <!-- Lista de facturas guardadas -->
+        <div id="history-list" class="p-4 space-y-3 flex-1 overflow-y-auto"></div>
+
+        <!-- Pie del historial -->
+        <div class="p-3.5 border-t border-slate-200 bg-slate-50 text-center text-[11px] text-slate-500 font-medium">
+            Cada vez que tocas <strong>Descargar PNG</strong> se guarda aquí automáticamente (máx. 5).
+        </div>
+    </aside>
+
+    <!-- Contenedor Principal + Menú Lateral Derecho -->
+    <div class="flex-1 flex flex-col lg:flex-row max-w-[1400px] w-full mx-auto">
+
+        <!-- Área Principal de la Factura -->
+        <main class="flex-1 p-3 sm:p-6 overflow-hidden flex flex-col items-center">
+            
+            <!-- Aviso de ayuda -->
+            <div class="w-full max-w-[850px] bg-white rounded-xl px-4 py-3 mb-4 shadow-sm border border-slate-200/80 text-center text-xs sm:text-sm text-slate-500">
+                Haz clic en los datos del cliente, productos, fecha o montos para editarlos. Los textos fijos están protegidos para evitar cambios accidentales.
+                <span id="db-status" class="inline-block ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">BD Local: Sincronizada</span>
+            </div>
+
+            <!-- Contenedor con scroll horizontal suave en móviles para mantener el formato horizontal intacto -->
+            <div class="w-full max-w-[860px] bg-white rounded-xl shadow-md border border-slate-200/90 p-3 sm:p-6 overflow-x-auto">
+                
+                <!-- LIENZO HORIZONTAL DE LA FACTURA (Ancho fijo horizontal de 800px como en la referencia) -->
+                <div id="invoice-sheet" class="w-[800px] min-w-[800px] bg-white text-slate-900 mx-auto select-none">
+                    
+                    <!-- MARCO PRINCIPAL (Encabezado + Datos + Tabla de Productos) -->
+                    <div class="border-2 border-slate-900">
+                        
+                        <!-- 1. ENCABEZADO -->
+                        <div class="px-6 py-4 border-b-2 border-slate-900 flex items-center justify-between">
+                            <div>
+                                <h1 class="text-[26px] font-extrabold tracking-tight leading-[1.08] text-slate-900">
+                                    FACTURA<br>PROFORMA
+                                </h1>
+                            </div>
+
+                            <!-- Columna Derecha: Logo -->
+                            <div>
+                                <!-- Logo Superior Derecho (73x73px, +30% tamaño, fondo transparente) -->
+                                <div class="relative w-[73px] h-[73px] flex items-center justify-center group cursor-pointer" title="Haz clic para cambiar el logo">
+                                    <input type="file" id="logo-upload" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                                    <div id="logo-preview" class="w-full h-full flex items-center justify-center">
+                                        <svg viewBox="0 0 100 100" class="w-[73px] h-[73px]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M 6 16 H 94 L 63 86 H 53 L 78 27 H 22 L 47 86 H 37 Z" fill="#0f172a"></path>
+                                        </svg>
                                     </div>
-                                </td>
-                            </tr>
-                            <!-- Grand Total Row -->
-                            <tr>
-                                <td class="w-[60%]"></td>
-                                <td class="w-[20%] py-3.5 px-3 text-right font-extrabold text-lg text-slate-900 select-none">
+                                    <span class="absolute -bottom-1 bg-slate-900/80 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        Logo
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. DATOS DEL CLIENTE Y DATOS DEL EMISOR (Horizontal 50% / 50%) -->
+                        <div class="px-6 py-4 border-b-2 border-slate-900 flex items-stretch">
+                            <!-- Columna Izquierda: Cliente -->
+                            <div class="w-1/2 pr-6 flex flex-col justify-start">
+                                <span class="text-[13.5px] font-medium text-slate-600 mb-1">Datos del cliente:</span>
+                                <div id="client-name" contenteditable="true" spellcheck="false" class="text-[21px] font-bold text-slate-900 leading-snug select-text break-words">Brenda Díaz</div>
+                            </div>
+
+                            <!-- Línea Divisoria Vertical Interna -->
+                            <div class="w-[1.5px] bg-slate-800 my-0.5 shrink-0"></div>
+
+                            <!-- Columna Derecha: Emisor -->
+                            <div class="w-1/2 pl-6 flex flex-col justify-start text-[14px] leading-snug space-y-1">
+                                <div class="font-bold text-slate-900">Datos:</div>
+                                <div id="issuer-name" contenteditable="true" spellcheck="false" class="font-medium text-slate-800 select-text break-words">Darwing Moreno</div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-medium text-slate-600">Cel:</span>
+                                    <span id="issuer-phone" contenteditable="true" spellcheck="false" class="font-bold text-slate-900 select-text">5808 1576</span>
+                                </div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="font-medium text-slate-600 shrink-0">Dirección:</span>
+                                    <span id="issuer-address" contenteditable="true" spellcheck="false" class="font-semibold text-slate-900 select-text break-words">Nagarote, Casino Toruño 2 y media al sur</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. TABLA DE PRODUCTOS -->
+                        <table class="w-full border-collapse table-fixed">
+                            <thead>
+                                <tr class="border-b-2 border-slate-900 text-[14px] font-bold text-slate-900 bg-white">
+                                    <th class="w-[10%] py-2.5 px-2 text-center border-r border-slate-900">Cant.</th>
+                                    <th class="w-[50%] py-2.5 px-4 text-left border-r border-slate-900">Descripción</th>
+                                    <th class="w-[20%] py-2.5 px-3 text-center border-r border-slate-900">Precio uni.</th>
+                                    <th class="w-[20%] py-2.5 px-3 text-center">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-rows" class="text-[14.5px]"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- 4. SECCIÓN DE ENVÍO Y TOTAL GENERAL (Alineada exactamente al 60% / 20% / 20%) -->
+                    <div class="w-full flex">
+                        <!-- Espacio izquierdo 60% -->
+                        <div class="w-[60%]"></div>
+
+                        <!-- Bloque derecho 40% (20% Precio uni. + 20% TOTAL) -->
+                        <div class="w-[40%] flex flex-col">
+                            <!-- Fila Envío (Fondo blanco puro) -->
+                            <div class="flex border-b border-slate-900">
+                                <div class="w-1/2 py-2.5 px-3.5 text-right font-semibold text-[15px] text-slate-800 border-r-2 border-slate-900 bg-white">
+                                    Envío:
+                                </div>
+                                <div class="w-1/2 py-2.5 px-3 font-bold text-[15px] text-slate-900 bg-white border-r-2 border-slate-900 flex items-center justify-center">
+                                    <span class="mr-1">C$</span>
+                                    <input id="shipping-input" type="number" step="any" min="0" value="150" class="invoice-input text-center font-bold w-20 select-text" aria-label="Costo de envío">
+                                </div>
+                            </div>
+
+                            <!-- Fila TOTAL C$ (Única celda con fondo gris claro neutro #e5e7eb) -->
+                            <div class="flex items-stretch">
+                                <div class="w-1/2 py-3 px-3.5 text-right font-extrabold text-[18px] text-slate-900 border-r-2 border-slate-900 bg-white flex items-center justify-end">
                                     TOTAL C$
-                                </td>
-                                <td id="grand-total-display"
-                                    class="w-[20%] py-3.5 px-3 bg-[#cbd5e1] border-2 border-slate-900 text-center font-extrabold text-lg text-slate-900 select-none">
-                                    C$ 9,330
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Footer Metadata & Validity Notice -->
-                <div class="mt-6 space-y-1.5 text-xs sm:text-sm text-slate-900">
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="font-bold select-none">Fecha:</span>
-                        <span id="invoice-date" contenteditable="true" spellcheck="false" class="font-bold">7/10/2026</span>
+                                </div>
+                                <div id="grand-total-display" class="w-1/2 py-3 px-3 text-center font-extrabold text-[18px] text-slate-900 bg-[#e5e7eb] border-b-2 border-r-2 border-slate-900 flex items-center justify-center">C$ 9,330</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="font-bold select-none">Nota de envío:</span>
-                        <span id="shipping-note" contenteditable="true" spellcheck="false" class="font-semibold">Envío a través de Cargotrans</span>
-                    </div>
-                    <p class="pt-3 text-xs font-semibold text-slate-700 select-none">
-                        Proforma válida por 15 días a partir de la fecha de emisión
-                    </p>
-                </div>
 
+                    <!-- 5. NOTAS AL PIE (Izquierda) -->
+                    <div class="mt-4 pt-1 pb-2 text-[13.5px] text-slate-900 space-y-1.5">
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="font-bold">Fecha:</span>
+                            <span id="invoice-date" contenteditable="true" spellcheck="false" class="font-bold select-text">7/10/2026</span>
+                        </div>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="font-bold shrink-0">Nota de envío:</span>
+                            <span id="shipping-note" contenteditable="true" spellcheck="false" class="font-semibold text-slate-800 select-text break-words">Envío a través de Cargotrans</span>
+                        </div>
+                        <p class="pt-3 text-[12.5px] font-medium text-slate-700">
+                            Proforma válida por 15 días a partir de la fecha de emisión
+                        </p>
+                    </div>
+
+                </div>
             </div>
         </main>
 
-        <!-- Floating Mobile Button to Open Right Sidebar -->
-        <button id="btn-open-sidebar" type="button"
-            class="lg:hidden fixed right-4 bottom-16 z-40 inline-flex items-center gap-2 bg-slate-900 text-white font-semibold text-xs px-4 py-3 rounded-full shadow-lg border border-slate-700 active:scale-95 transition cursor-pointer">
-            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            <span>Resolución / MP</span>
-        </button>
-
-        <!-- Mobile Backdrop -->
-        <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/50 z-40 hidden lg:hidden"></div>
-
-        <!-- Right Sidebar: Image Resolution & Bit Depth Settings -->
-        <aside id="settings-sidebar"
-            class="fixed lg:static top-0 right-0 h-full lg:h-auto w-80 max-w-[90vw] bg-white border-l lg:border border-slate-200 lg:rounded-2xl shadow-2xl lg:shadow-sm p-5 z-50 transform translate-x-full lg:translate-x-0 transition-transform duration-200 ease-out overflow-y-auto shrink-0">
-
-            <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    <h2 class="font-bold text-slate-900 text-sm uppercase tracking-wider">Ajustes de Imagen</h2>
+        <!-- MENÚ LATERAL DERECHO (Resolución MP y Profundidad bpp) -->
+        <aside id="settings-sidebar" class="fixed lg:static top-0 right-0 h-full lg:h-auto w-80 bg-white border-l border-slate-200 shadow-2xl lg:shadow-none z-50 lg:translate-x-0 flex flex-col shrink-0 translate-x-full">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-extrabold text-slate-900">Ajustes de Imagen PNG</h2>
+                    <p class="text-xs text-slate-500">Renderizado vectorial nítido</p>
                 </div>
-                <button id="btn-close-sidebar" type="button"
-                    class="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                <button id="btn-close-settings" type="button" class="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <!-- Section 1: Megapixels Selector (1 MP, 2 MP, 4 MP) -->
-            <div class="mt-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Resolución</span>
-                    <span id="mp-badge" class="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                        4 MP
-                    </span>
+            <div class="p-5 space-y-6 flex-1 overflow-y-auto">
+                <!-- Selector de Resolución (1.5 MP, 4 MP, 6 MP) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-600">Resolución</label>
+                        <span id="mp-label-active" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">1.5 MP</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-mp="1.5" class="mp-btn py-2.5 px-3 rounded-xl font-bold text-sm border-2 bg-slate-900 text-white border-slate-900 shadow-sm transition-all">
+                            1.5 MP
+                        </button>
+                        <button type="button" data-mp="4" class="mp-btn py-2.5 px-3 rounded-xl font-bold text-sm border-2 bg-white text-slate-700 border-slate-300 hover:border-slate-900 transition-all">
+                            4 MP
+                        </button>
+                        <button type="button" data-mp="6" class="mp-btn py-2.5 px-3 rounded-xl font-bold text-sm border-2 bg-white text-slate-700 border-slate-300 hover:border-slate-900 transition-all">
+                            6 MP
+                        </button>
+                    </div>
+                    <p id="res-dimensions" class="text-xs text-slate-500 mt-2 font-medium">Dimensiones aprox.: 1601 × 1249 px</p>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2">
-                    <button type="button" data-mp="1"
-                        class="mp-option-btn py-2.5 px-2 rounded-xl border text-center transition cursor-pointer">
-                        <div class="text-sm font-extrabold">1 MP</div>
-                        <div class="text-[10px] opacity-75">Ligera</div>
-                    </button>
-                    <button type="button" data-mp="2"
-                        class="mp-option-btn py-2.5 px-2 rounded-xl border text-center transition cursor-pointer">
-                        <div class="text-sm font-extrabold">2 MP</div>
-                        <div class="text-[10px] opacity-75">Estándar</div>
-                    </button>
-                    <button type="button" data-mp="4"
-                        class="mp-option-btn py-2.5 px-2 rounded-xl border text-center transition cursor-pointer">
-                        <div class="text-sm font-extrabold">4 MP</div>
-                        <div class="text-[10px] opacity-75">Ultra Nitidez</div>
-                    </button>
-                </div>
-
-                <div class="mt-2.5 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-xs flex items-center justify-between">
-                    <span class="text-slate-500 font-medium">Dimensiones:</span>
-                    <span id="resolution-dimensions" class="font-bold text-slate-800">2560 × 1564 px</span>
-                </div>
-            </div>
-
-            <!-- Section 2: Bit Depth Slider (4, 8, 16, 24 bpp) -->
-            <div class="mt-5 pt-4 border-t border-slate-100">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Profundidad (Bits/Píxel)</span>
-                    <span id="bpp-badge" class="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                        8 bpp
-                    </span>
-                </div>
-
-                <input id="bpp-slider" type="range" min="0" max="3" step="1" value="1" class="bpp-slider my-2">
-
-                <div class="flex justify-between text-[11px] font-bold text-slate-500 px-0.5 select-none">
-                    <button type="button" data-bpp-idx="0" class="bpp-step-btn hover:text-slate-900 cursor-pointer">4 bpp</button>
-                    <button type="button" data-bpp-idx="1" class="bpp-step-btn hover:text-slate-900 cursor-pointer">8 bpp</button>
-                    <button type="button" data-bpp-idx="2" class="bpp-step-btn hover:text-slate-900 cursor-pointer">16 bpp</button>
-                    <button type="button" data-bpp-idx="3" class="bpp-step-btn hover:text-slate-900 cursor-pointer">24 bpp</button>
-                </div>
-
-                <p id="bpp-description" class="mt-2 text-[11px] text-slate-500 leading-snug">
-                    256 niveles tonales exactos (1 byte/píxel). Equilibrio óptimo entre nitidez vectorial y peso ligero.
-                </p>
-            </div>
-
-            <!-- Section 3: Estimated Output Summary -->
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-xs">
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-500">Motor de dibujo:</span>
-                    <span class="font-bold text-slate-800">Vectorial Nativo 2D</span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-500">Peso eficiente est.:</span>
-                    <span id="estimated-size" class="font-extrabold text-emerald-700">~180 KB – 420 KB</span>
+                <!-- Control deslizante de Profundidad de Color (1, 5, 15, 24 bpp) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="bpp-slider" class="text-xs font-bold uppercase tracking-wider text-slate-600">Profundidad (bpp)</label>
+                        <span id="bpp-badge" class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">24 bpp</span>
+                    </div>
+                    <input id="bpp-slider" type="range" min="0" max="3" step="1" value="3" class="w-full accent-slate-900 cursor-pointer">
+                    <div class="flex justify-between text-[11px] font-bold text-slate-500 mt-1 px-0.5">
+                        <span>1 bpp</span>
+                        <span>5 bpp</span>
+                        <span>15 bpp</span>
+                        <span>24 bpp</span>
+                    </div>
+                    <div id="bpp-info" class="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed"><strong>24 bits (Color verdadero):</strong> 8 bits por canal RGB, máxima fidelidad sin compresión de color.</div>
                 </div>
             </div>
-
-            <button id="btn-sidebar-download" type="button"
-                class="mt-5 w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-sm transition cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
-                </svg>
-                <span>Exportar PNG Nítido</span>
-            </button>
         </aside>
     </div>
 
     <script>
-        // Initial default rows matching the user's reference image
-        const initialRows = [
-            { qty: '6', description: 'Camisetas verde', price: '390' },
-            { qty: '18', description: 'Camisetas sin manga verde', price: '380' },
-            { qty: '', description: '', price: '' }
-        ];
-
-        const MP_STEPS = [1, 2, 4];
-        const BPP_STEPS = [4, 8, 16, 24];
-
-        let selectedMegapixels = 4;
-        let selectedBpp = 8;
-        let isInitializing = true;
-
+        // Referencias DOM principales
         const rowsContainer = document.getElementById('invoice-rows');
+        const btnAddRow = document.getElementById('btn-add-row');
+        const btnExportPng = document.getElementById('btn-export-png');
         const shippingInput = document.getElementById('shipping-input');
         const grandTotalDisplay = document.getElementById('grand-total-display');
-        const customLogo = document.getElementById('custom-logo');
-        const defaultLogo = document.getElementById('default-logo');
-        const logoFileInput = document.getElementById('logo-file-input');
+        const logoUpload = document.getElementById('logo-upload');
+        const logoPreview = document.getElementById('logo-preview');
+        const dbStatus = document.getElementById('db-status');
 
-        // Format number with commas cleanly
-        function formatCurrencyNumber(num) {
-            if (isNaN(num)) return '0';
-            const rounded = Math.round(num * 100) / 100;
-            return rounded.toLocaleString('en-US', {
-                minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
+        const elClientName = document.getElementById('client-name');
+        const elIssuerName = document.getElementById('issuer-name');
+        const elIssuerPhone = document.getElementById('issuer-phone');
+        const elIssuerAddress = document.getElementById('issuer-address');
+        const elInvoiceDate = document.getElementById('invoice-date');
+        const elShippingNote = document.getElementById('shipping-note');
+
+        // Menú lateral derecho (Ajustes MP/bpp)
+        const sidebar = document.getElementById('settings-sidebar');
+        const overlay = document.getElementById('settings-overlay');
+        const btnToggleSettings = document.getElementById('btn-toggle-settings');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const mpBtns = document.querySelectorAll('.mp-btn');
+        const bppSlider = document.getElementById('bpp-slider');
+        const mpLabelActive = document.getElementById('mp-label-active');
+        const bppBadge = document.getElementById('bpp-badge');
+        const bppInfo = document.getElementById('bpp-info');
+        const resDimensions = document.getElementById('res-dimensions');
+        const resBadgeTop = document.getElementById('res-badge-top');
+
+        // Menú lateral izquierdo (Historial de Facturas - Máx. 5)
+        const historySidebar = document.getElementById('history-sidebar');
+        const historyOverlay = document.getElementById('history-overlay');
+        const btnToggleHistory = document.getElementById('btn-toggle-history');
+        const btnCloseHistory = document.getElementById('btn-close-history');
+        const historyListEl = document.getElementById('history-list');
+        const historyCountBadge = document.getElementById('history-count-badge');
+        const historySearchInput = document.getElementById('history-search-input');
+
+        const MAX_HISTORY_ITEMS = 5;
+        const BPP_STEPS = [1, 5, 15, 24];
+        let settings = { mp: 1.5, bpp: 24 };
+        let invoiceHistory = [];
+        let customLogoDataUrl = null;
+        let isInitializing = true;
+        let cachedDbPromise = null;
+
+        const DEFAULT_LOGO_SVG = `
+            <svg viewBox="0 0 100 100" class="w-[73px] h-[73px]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 6 16 H 94 L 63 86 H 53 L 78 27 H 22 L 47 86 H 37 Z" fill="#0f172a"></path>
+            </svg>
+        `;
+
+        // ==========================================
+        // 1. BASE DE DATOS LOCAL (IndexedDB)
+        // ==========================================
+        function getDB() {
+            if (!cachedDbPromise) {
+                cachedDbPromise = new Promise((resolve, reject) => {
+                    const req = indexedDB.open('ProformaLocalDB', 1);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('invoiceState')) {
+                            db.createObjectStore('invoiceState', { keyPath: 'id' });
+                        }
+                    };
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+            return cachedDbPromise;
+        }
+
+        function collectCurrentState() {
+            const rows = [];
+            rowsContainer.querySelectorAll('tr').forEach(tr => {
+                rows.push({
+                    qty: tr.querySelector('.row-qty').value,
+                    desc: tr.querySelector('.row-desc').textContent,
+                    price: tr.querySelector('.row-price').value
+                });
+            });
+            return {
+                id: 'current',
+                clientName: elClientName.textContent,
+                issuerName: elIssuerName.textContent,
+                issuerPhone: elIssuerPhone.textContent,
+                issuerAddress: elIssuerAddress.textContent,
+                invoiceDate: elInvoiceDate.textContent,
+                shippingNote: elShippingNote.textContent,
+                shipping: shippingInput.value,
+                customLogoDataUrl: customLogoDataUrl,
+                settings: { ...settings },
+                rows: rows
+            };
+        }
+
+        async function saveAppState() {
+            if (isInitializing) return;
+            const state = collectCurrentState();
+            try {
+                localStorage.setItem('proforma_backup_v1', JSON.stringify(state));
+                const db = await getDB();
+                const tx = db.transaction('invoiceState', 'readwrite');
+                tx.objectStore('invoiceState').put(state);
+                tx.oncomplete = () => {
+                    dbStatus.textContent = 'BD Local: Guardado';
+                    setTimeout(() => { dbStatus.textContent = 'BD Local: Sincronizada'; }, 1200);
+                };
+            } catch (e) {
+                console.warn('Error guardando en IndexedDB:', e);
+            }
+        }
+
+        async function saveHistoryToDB() {
+            try {
+                localStorage.setItem('proforma_history_v1', JSON.stringify(invoiceHistory));
+                const db = await getDB();
+                const tx = db.transaction('invoiceState', 'readwrite');
+                tx.objectStore('invoiceState').put({
+                    id: 'history',
+                    items: invoiceHistory
+                });
+            } catch (e) {
+                console.warn('Error guardando historial en IndexedDB:', e);
+            }
+        }
+
+        async function loadHistoryFromDB() {
+            let loaded = null;
+            try {
+                const db = await getDB();
+                const record = await new Promise((resolve) => {
+                    const tx = db.transaction('invoiceState', 'readonly');
+                    const req = tx.objectStore('invoiceState').get('history');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+                if (record && Array.isArray(record.items)) {
+                    loaded = record.items;
+                }
+            } catch (e) {}
+
+            if (!loaded) {
+                try {
+                    const raw = localStorage.getItem('proforma_history_v1');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) loaded = parsed;
+                    }
+                } catch (e) {}
+            }
+
+            invoiceHistory = Array.isArray(loaded) ? loaded.slice(0, MAX_HISTORY_ITEMS) : [];
+            renderHistoryList();
+        }
+
+        async function loadAppState() {
+            let saved = null;
+            try {
+                const db = await getDB();
+                saved = await new Promise((resolve) => {
+                    const tx = db.transaction('invoiceState', 'readonly');
+                    const req = tx.objectStore('invoiceState').get('current');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                console.warn('Fallback a localStorage:', e);
+            }
+
+            if (!saved) {
+                try {
+                    const raw = localStorage.getItem('proforma_backup_v1');
+                    if (raw) saved = JSON.parse(raw);
+                } catch (e) {}
+            }
+
+            if (saved) {
+                applyInvoiceDataToEditor(saved, false);
+                if (saved.settings) {
+                    if ([1.5, 4, 6].includes(saved.settings.mp)) settings.mp = saved.settings.mp;
+                    if (BPP_STEPS.includes(saved.settings.bpp)) settings.bpp = saved.settings.bpp;
+                }
+            } else {
+                loadDefaultRows();
+            }
+
+            await loadHistoryFromDB();
+            updateSettingsUI();
+            calculateTotals(false);
+            isInitializing = false;
+        }
+
+        function applyInvoiceDataToEditor(data, triggerSave = true) {
+            const prevInit = isInitializing;
+            isInitializing = true;
+
+            if (typeof data.clientName === 'string') elClientName.textContent = data.clientName;
+            if (typeof data.issuerName === 'string') elIssuerName.textContent = data.issuerName;
+            if (typeof data.issuerPhone === 'string') elIssuerPhone.textContent = data.issuerPhone;
+            if (typeof data.issuerAddress === 'string') elIssuerAddress.textContent = data.issuerAddress;
+            if (typeof data.invoiceDate === 'string') elInvoiceDate.textContent = data.invoiceDate;
+            if (typeof data.shippingNote === 'string') elShippingNote.textContent = data.shippingNote;
+            if (data.shipping !== undefined) shippingInput.value = data.shipping;
+
+            if (data.customLogoDataUrl) {
+                customLogoDataUrl = data.customLogoDataUrl;
+                renderCustomLogoPreview(customLogoDataUrl);
+            } else {
+                customLogoDataUrl = null;
+                logoPreview.innerHTML = DEFAULT_LOGO_SVG;
+            }
+
+            rowsContainer.innerHTML = '';
+            if (Array.isArray(data.rows) && data.rows.length > 0) {
+                data.rows.forEach(r => addRow(r));
+            } else {
+                loadDefaultRows();
+            }
+
+            isInitializing = prevInit;
+            calculateTotals(triggerSave);
+        }
+
+        function renderCustomLogoPreview(dataUrl) {
+            logoPreview.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = 'Logo';
+            img.className = 'max-w-[73px] max-h-[73px] object-contain';
+            logoPreview.appendChild(img);
+        }
+
+        // ==========================================
+        // 2. SISTEMA DE HISTORIAL (MÁX. 5 FACTURAS)
+        // ==========================================
+        function openHistorySidebar() {
+            historySidebar.classList.remove('-translate-x-full');
+            historyOverlay.classList.remove('hidden');
+            renderHistoryList();
+        }
+
+        function closeHistorySidebar() {
+            historySidebar.classList.add('-translate-x-full');
+            historyOverlay.classList.add('hidden');
+        }
+
+        btnToggleHistory.addEventListener('click', openHistorySidebar);
+        btnCloseHistory.addEventListener('click', closeHistorySidebar);
+        historyOverlay.addEventListener('click', closeHistorySidebar);
+        historySearchInput.addEventListener('input', () => renderHistoryList());
+
+        function computeStateGrandTotal(state) {
+            let subtotal = 0;
+            (state.rows || []).forEach(r => {
+                const q = parseFloat(r.qty);
+                const p = parseFloat(r.price);
+                if (!isNaN(q) && q > 0 && !isNaN(p) && p >= 0) {
+                    subtotal += q * p;
+                }
+            });
+            const ship = parseFloat(state.shipping);
+            const shipping = (!isNaN(ship) && ship >= 0) ? ship : 0;
+            return subtotal + shipping;
+        }
+
+        async function saveSnapshotToHistory(state) {
+            const now = new Date();
+            const exportedAt = now.toLocaleDateString('es-NI', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            }) + ' · ' + now.toLocaleTimeString('es-NI', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const grandTotal = computeStateGrandTotal(state);
+            const snapshot = {
+                uid: 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                exportedAt: exportedAt,
+                totalFormatted: 'C$ ' + formatNumber(grandTotal),
+                clientName: state.clientName,
+                issuerName: state.issuerName,
+                issuerPhone: state.issuerPhone,
+                issuerAddress: state.issuerAddress,
+                invoiceDate: state.invoiceDate,
+                shippingNote: state.shippingNote,
+                shipping: state.shipping,
+                customLogoDataUrl: state.customLogoDataUrl,
+                rows: (state.rows || []).map(r => ({
+                    qty: r.qty,
+                    desc: r.desc,
+                    price: r.price
+                }))
+            };
+
+            // Insertar al inicio y mantener un máximo estricto de 5 facturas
+            invoiceHistory.unshift(snapshot);
+            if (invoiceHistory.length > MAX_HISTORY_ITEMS) {
+                invoiceHistory = invoiceHistory.slice(0, MAX_HISTORY_ITEMS);
+            }
+
+            await saveHistoryToDB();
+            renderHistoryList();
+        }
+
+        function renderHistoryList() {
+            historyCountBadge.textContent = `${invoiceHistory.length}/${MAX_HISTORY_ITEMS}`;
+            const query = (historySearchInput.value || '').trim().toLowerCase();
+
+            const filtered = invoiceHistory.filter(item => {
+                if (!query) return true;
+                const clientMatch = (item.clientName || '').toLowerCase().includes(query);
+                const dateMatch = (item.invoiceDate || '').toLowerCase().includes(query) || (item.exportedAt || '').toLowerCase().includes(query);
+                const totalMatch = (item.totalFormatted || '').toLowerCase().includes(query);
+                const rowsMatch = (item.rows || []).some(r => (r.desc || '').toLowerCase().includes(query));
+                return clientMatch || dateMatch || totalMatch || rowsMatch;
+            });
+
+            historyListEl.innerHTML = '';
+
+            if (invoiceHistory.length === 0) {
+                historyListEl.innerHTML = `
+                    <div class="text-center py-10 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70">
+                        <p class="text-sm font-bold text-slate-700 mb-1">Aún no hay facturas en el historial</p>
+                        <p class="text-xs text-slate-500">Al presionar el botón <strong>Descargar PNG</strong>, los datos de la factura se guardarán aquí automáticamente (máximo 5).</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (filtered.length === 0) {
+                historyListEl.innerHTML = `
+                    <div class="text-center py-8 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/70">
+                        <p class="text-xs font-semibold text-slate-600">No se encontraron facturas que coincidan con "${historySearchInput.value}".</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach((item, index) => {
+                const validProducts = (item.rows || []).filter(r => (r.desc || '').trim() !== '' || (r.qty || '').toString().trim() !== '');
+                const productPreview = validProducts.length > 0
+                    ? validProducts.map(r => `${r.qty ? r.qty + 'x ' : ''}${r.desc || 'Producto'}`).join(', ')
+                    : 'Sin descripción de productos';
+
+                const card = document.createElement('div');
+                card.className = 'p-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 shadow-sm transition-all flex flex-col gap-2.5';
+
+                const topRow = document.createElement('div');
+                topRow.className = 'flex items-start justify-between gap-2';
+
+                const clientTitle = document.createElement('div');
+                clientTitle.className = 'font-extrabold text-sm text-slate-900 leading-snug break-words';
+                clientTitle.textContent = item.clientName || 'Cliente sin nombre';
+
+                const totalPill = document.createElement('span');
+                totalPill.className = 'shrink-0 bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-xs px-2 py-0.5 rounded-lg';
+                totalPill.textContent = item.totalFormatted || 'C$ 0';
+
+                topRow.appendChild(clientTitle);
+                topRow.appendChild(totalPill);
+
+                const descP = document.createElement('p');
+                descP.className = 'text-xs text-slate-600 line-clamp-2 leading-relaxed';
+                descP.textContent = productPreview;
+
+                const metaRow = document.createElement('div');
+                metaRow.className = 'flex items-center justify-between text-[11px] text-slate-400 font-medium pt-1 border-t border-slate-100';
+                metaRow.innerHTML = `
+                    <span>Fecha fac.: <strong class="text-slate-600">${item.invoiceDate || '-'}</strong></span>
+                    <span>${item.exportedAt || ''}</span>
+                `;
+
+                const actionsRow = document.createElement('div');
+                actionsRow.className = 'flex items-center gap-2 pt-1';
+
+                const btnLoad = document.createElement('button');
+                btnLoad.type = 'button';
+                btnLoad.className = 'flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5';
+                btnLoad.innerHTML = `
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    <span>Cargar y Editar</span>
+                `;
+                btnLoad.addEventListener('click', () => {
+                    applyInvoiceDataToEditor(item, true);
+                    closeHistorySidebar();
+                    dbStatus.textContent = 'Factura cargada del historial';
+                    setTimeout(() => { dbStatus.textContent = 'BD Local: Sincronizada'; }, 2000);
+                });
+
+                const btnDel = document.createElement('button');
+                btnDel.type = 'button';
+                btnDel.title = 'Eliminar del historial';
+                btnDel.className = 'p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-slate-200 transition-colors';
+                btnDel.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+                btnDel.addEventListener('click', async () => {
+                    invoiceHistory = invoiceHistory.filter(h => h.uid !== item.uid);
+                    await saveHistoryToDB();
+                    renderHistoryList();
+                });
+
+                actionsRow.appendChild(btnLoad);
+                actionsRow.appendChild(btnDel);
+
+                card.appendChild(topRow);
+                card.appendChild(descP);
+                card.appendChild(metaRow);
+                card.appendChild(actionsRow);
+
+                historyListEl.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // 3. FILAS Y CÁLCULOS DE LA FACTURA
+        // ==========================================
+        function formatNumber(num) {
+            return num.toLocaleString('en-US', {
+                minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
                 maximumFractionDigits: 2
             });
         }
 
-        // Normalize text from contenteditable preserving line breaks cleanly
-        function getCleanEditableText(el) {
-            if (!el) return '';
-            return (el.innerText || el.textContent || '').replace(/\r\n/g, '\n').replace(/\u00a0/g, ' ').trim();
-        }
-
-        // Prevent rich-text HTML injection when pasting into contenteditable fields
-        document.addEventListener('paste', (e) => {
-            const target = e.target && e.target.closest && e.target.closest('[contenteditable="true"]');
-            if (!target) return;
-            e.preventDefault();
-            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-            if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
-                document.execCommand('insertText', false, text);
-            } else {
-                const selection = window.getSelection();
-                if (!selection.rangeCount) return;
-                selection.deleteFromDocument();
-                selection.getRangeAt(0).insertNode(document.createTextNode(text));
-                selection.collapseToEnd();
-            }
-        });
-
-        // Create an editable product row safely without innerHTML XSS/attribute issues
-        function createRowElement(data = { qty: '', description: '', price: '' }) {
+        function createRowElement(data = { qty: '', desc: '', price: '' }) {
             const tr = document.createElement('tr');
-            tr.className = 'group bg-white hover:bg-slate-50/70 transition-colors';
-
-            const qtyVal = data.qty !== undefined && data.qty !== null ? String(data.qty) : '';
-            const priceVal = data.price !== undefined && data.price !== null ? String(data.price) : '';
-            const q = parseFloat(qtyVal);
-            const p = parseFloat(priceVal);
-            const rowTotal = (!isNaN(q) && q > 0 && !isNaN(p) && p >= 0)
-                ? `C$ ${formatCurrencyNumber(q * p)}`
-                : '';
+            tr.className = 'border-b border-slate-900 last:border-b-0 bg-white group';
 
             tr.innerHTML = `
-                <td class="py-2.5 px-2 text-center font-bold text-slate-900 border-r border-slate-700 align-middle">
-                    <input type="number" step="any" min="0" placeholder=""
-                        class="invoice-input row-qty text-center font-bold" aria-label="Cantidad">
+                <td class="py-2.5 px-2 text-center font-bold text-slate-900 border-r border-slate-900 align-middle bg-white">
+                    <input type="number" step="any" min="0" class="invoice-input row-qty text-center font-bold select-text" aria-label="Cantidad">
                 </td>
-                <td class="py-2.5 px-4 text-left font-bold text-slate-900 border-r border-slate-700 align-middle">
-                    <div contenteditable="true" spellcheck="false"
-                        class="row-desc w-full min-h-[1.4rem] outline-none break-words"></div>
+                <td class="py-2.5 px-4 text-left font-bold text-slate-900 border-r border-slate-900 align-middle bg-white">
+                    <div contenteditable="true" spellcheck="false" class="row-desc w-full min-h-[1.35rem] outline-none select-text break-words"></div>
                 </td>
-                <td class="py-2.5 px-3 text-left font-medium text-slate-800 border-r border-slate-700 bg-[#f8fafc] align-middle">
+                <td class="py-2.5 px-3 text-left font-medium text-slate-800 border-r border-slate-900 align-middle bg-white">
                     <div class="flex items-center">
-                        <span class="mr-1 select-none text-slate-700">C$</span>
-                        <input type="number" step="any" min="0" placeholder=""
-                            class="invoice-input row-price font-medium" aria-label="Precio unitario">
+                        <span class="mr-1 text-slate-700">C$</span>
+                        <input type="number" step="any" min="0" class="invoice-input row-price font-medium select-text" aria-label="Precio unitario">
                     </div>
                 </td>
-                <td class="py-2.5 px-3 text-center font-bold text-slate-900 bg-[#f1f5f9] relative align-middle">
+                <td class="py-2.5 px-3 text-center font-bold text-slate-900 align-middle bg-white relative">
                     <span class="row-total-text"></span>
-                    <button type="button" title="Eliminar fila"
-                        class="no-export btn-remove-row opacity-60 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-rose-100 hover:bg-rose-600 text-rose-600 hover:text-white flex items-center justify-center text-xs font-bold shadow-sm cursor-pointer">
-                        &times;
+                    <button type="button" title="Eliminar fila" class="btn-remove-row absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-600 p-1 opacity-40 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
                     </button>
                 </td>
             `;
 
             const qtyInput = tr.querySelector('.row-qty');
+            const descDiv = tr.querySelector('.row-desc');
             const priceInput = tr.querySelector('.row-price');
-            const descInput = tr.querySelector('.row-desc');
-            const totalTextEl = tr.querySelector('.row-total-text');
             const removeBtn = tr.querySelector('.btn-remove-row');
 
-            qtyInput.value = qtyVal;
-            priceInput.value = priceVal;
-            descInput.textContent = data.description || '';
-            totalTextEl.textContent = rowTotal;
+            qtyInput.value = data.qty !== undefined ? data.qty : '';
+            descDiv.textContent = data.desc !== undefined ? data.desc : '';
+            priceInput.value = data.price !== undefined ? data.price : '';
 
             qtyInput.addEventListener('input', () => calculateTotals(true));
             priceInput.addEventListener('input', () => calculateTotals(true));
-            descInput.addEventListener('input', () => {
-                updateResolutionUI();
-                saveAppState();
-            });
+            descDiv.addEventListener('input', () => saveAppState());
 
             removeBtn.addEventListener('click', () => {
                 if (rowsContainer.children.length > 1) {
                     tr.remove();
-                    calculateTotals(true);
                 } else {
                     qtyInput.value = '';
+                    descDiv.textContent = '';
                     priceInput.value = '';
-                    descInput.textContent = '';
-                    calculateTotals(true);
                 }
+                calculateTotals(true);
             });
 
             return tr;
         }
 
+        function addRow(data) {
+            rowsContainer.appendChild(createRowElement(data));
+        }
+
+        function loadDefaultRows() {
+            rowsContainer.innerHTML = '';
+            addRow({ qty: '6', desc: 'Camisetas verde', price: '390' });
+            addRow({ qty: '18', desc: 'Camisetas sin manga verde', price: '380' });
+            addRow({ qty: '', desc: '', price: '' });
+        }
+
         function calculateTotals(shouldSave = true) {
             let subtotal = 0;
-            const rows = rowsContainer.querySelectorAll('tr');
-
-            rows.forEach((row) => {
-                const qty = parseFloat(row.querySelector('.row-qty').value);
-                const price = parseFloat(row.querySelector('.row-price').value);
-                const totalCell = row.querySelector('.row-total-text');
+            rowsContainer.querySelectorAll('tr').forEach(tr => {
+                const qty = parseFloat(tr.querySelector('.row-qty').value);
+                const price = parseFloat(tr.querySelector('.row-price').value);
+                const totalSpan = tr.querySelector('.row-total-text');
 
                 if (!isNaN(qty) && qty > 0 && !isNaN(price) && price >= 0) {
                     const lineTotal = qty * price;
                     subtotal += lineTotal;
-                    totalCell.textContent = `C$ ${formatCurrencyNumber(lineTotal)}`;
+                    totalSpan.textContent = 'C$ ' + formatNumber(lineTotal);
                 } else {
-                    totalCell.textContent = '';
+                    totalSpan.textContent = '';
                 }
             });
 
-            const shipping = parseFloat(shippingInput.value) || 0;
+            const shipVal = parseFloat(shippingInput.value);
+            const shipping = (!isNaN(shipVal) && shipVal >= 0) ? shipVal : 0;
             const grandTotal = subtotal + shipping;
-            grandTotalDisplay.textContent = `C$ ${formatCurrencyNumber(grandTotal)}`;
-            updateResolutionUI();
+            grandTotalDisplay.textContent = 'C$ ' + formatNumber(grandTotal);
 
-            if (shouldSave && !isInitializing) {
-                saveAppState();
-            }
+            if (shouldSave) saveAppState();
         }
 
-        // ============================================================================
-        // IndexedDB Local Database Manager (Modifies DB ONLY when user edits fields)
-        // ============================================================================
-        const DB_NAME = 'ProformaLocalDB';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'proforma_store';
-        const RECORD_KEY = 'active_invoice_data';
-        const LEGACY_STORAGE_KEY = 'proforma_pwa_state_v1';
-
-        const dbStatusText = document.getElementById('db-status-text');
-        const dbStatusDot = document.getElementById('db-status-dot');
-        let cachedDbPromise = null;
-
-        function setDbStatusUI(statusText, isSaving = false) {
-            if (!dbStatusText || !dbStatusDot) return;
-            dbStatusText.textContent = statusText;
-            dbStatusDot.className = isSaving
-                ? 'w-2 h-2 rounded-full bg-amber-500 animate-pulse'
-                : 'w-2 h-2 rounded-full bg-emerald-500';
-        }
-
-        function openLocalDatabase() {
-            if (cachedDbPromise) return cachedDbPromise;
-            cachedDbPromise = new Promise((resolve, reject) => {
-                if (!window.indexedDB) {
-                    cachedDbPromise = null;
-                    reject(new Error('IndexedDB no disponible'));
-                    return;
-                }
-                const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME);
-                    }
-                };
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    db.onclose = () => { cachedDbPromise = null; };
-                    db.onversionchange = () => {
-                        db.close();
-                        cachedDbPromise = null;
-                    };
-                    resolve(db);
-                };
-                request.onerror = (event) => {
-                    cachedDbPromise = null;
-                    reject(event.target.error);
-                };
-            });
-            return cachedDbPromise;
-        }
-
-        function collectCurrentInvoiceState() {
-            const rowsData = [];
-            rowsContainer.querySelectorAll('tr').forEach((tr) => {
-                rowsData.push({
-                    qty: tr.querySelector('.row-qty')?.value ?? '',
-                    description: getCleanEditableText(tr.querySelector('.row-desc')),
-                    price: tr.querySelector('.row-price')?.value ?? ''
-                });
-            });
-
-            return {
-                clientName: getCleanEditableText(document.getElementById('client-name')),
-                senderName: getCleanEditableText(document.getElementById('sender-name')),
-                senderPhone: getCleanEditableText(document.getElementById('sender-phone')),
-                senderAddress: getCleanEditableText(document.getElementById('sender-address')),
-                invoiceDate: getCleanEditableText(document.getElementById('invoice-date')),
-                shippingNote: getCleanEditableText(document.getElementById('shipping-note')),
-                rows: rowsData,
-                shipping: shippingInput.value ?? '0',
-                customLogoSrc: !customLogo.classList.contains('hidden') ? customLogo.src : '',
-                megapixels: selectedMegapixels,
-                bpp: selectedBpp,
-                updatedAt: Date.now()
-            };
-        }
-
-        let saveDebounceTimer = null;
-
-        function saveAppState() {
-            if (isInitializing) return;
-            setDbStatusUI('BD Local: Guardando...', true);
-
-            if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-            saveDebounceTimer = setTimeout(async () => {
-                const state = collectCurrentInvoiceState();
-                try {
-                    const db = await openLocalDatabase();
-                    await new Promise((resolve, reject) => {
-                        const tx = db.transaction(STORE_NAME, 'readwrite');
-                        const store = tx.objectStore(STORE_NAME);
-                        store.put(state, RECORD_KEY);
-                        tx.oncomplete = () => resolve();
-                        tx.onerror = (e) => reject(e.target.error);
-                    });
-                } catch (err) {
-                    cachedDbPromise = null;
-                }
-
-                try {
-                    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state));
-                } catch (e) {
-                    // Ignore storage quota errors
-                }
-
-                setDbStatusUI('BD Local: Guardado', false);
-            }, 120);
-        }
-
-        async function loadAppState() {
-            try {
-                const db = await openLocalDatabase();
-                const record = await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_NAME, 'readonly');
-                    const store = tx.objectStore(STORE_NAME);
-                    const req = store.get(RECORD_KEY);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = (e) => reject(e.target.error);
-                });
-                if (record) return record;
-            } catch (e) {
-                cachedDbPromise = null;
-            }
-
-            try {
-                const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-                if (!raw) return null;
-                return JSON.parse(raw);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // Attach input listeners to all editable invoice text fields
-        const editableFieldIds = [
-            'client-name',
-            'sender-name',
-            'sender-phone',
-            'sender-address',
-            'invoice-date',
-            'shipping-note'
-        ];
-        editableFieldIds.forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', () => saveAppState());
+        // Pegado de texto plano limpio
+        document.addEventListener('paste', (e) => {
+            if (e.target && e.target.isContentEditable) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                document.execCommand('insertText', false, text);
             }
         });
 
-        // ============================================================================
-        // Sidebar UI & Resolution / BPP Controls
-        // ============================================================================
-        const mpOptionBtns = document.querySelectorAll('.mp-option-btn');
-        const bppSlider = document.getElementById('bpp-slider');
-        const bppStepBtns = document.querySelectorAll('.bpp-step-btn');
-        const mpBadge = document.getElementById('mp-badge');
-        const bppBadge = document.getElementById('bpp-badge');
-        const bppDescription = document.getElementById('bpp-description');
-        const resolutionDimensions = document.getElementById('resolution-dimensions');
-        const estimatedSize = document.getElementById('estimated-size');
-        const btnDownloadLabel = document.getElementById('btn-download-label');
-
-        function getTargetDimensions(mp) {
-            const sheet = document.getElementById('invoice-sheet');
-            const baseW = 820;
-            const baseH = sheet ? Math.max(480, sheet.offsetHeight) : 520;
-            const aspect = baseW / baseH;
-            const totalPixels = mp * 1000000;
-            const targetW = Math.round(Math.sqrt(totalPixels * aspect));
-            const targetH = Math.round(targetW / aspect);
-            return { width: targetW, height: targetH, scale: targetW / baseW };
-        }
-
-        function updateResolutionUI() {
-            const dims = getTargetDimensions(selectedMegapixels);
-            resolutionDimensions.textContent = `${dims.width} × ${dims.height} px`;
-            mpBadge.textContent = `${selectedMegapixels} MP`;
-            btnDownloadLabel.textContent = `Descargar PNG (${selectedMegapixels} MP)`;
-
-            mpOptionBtns.forEach((btn) => {
-                const mpVal = Number(btn.getAttribute('data-mp'));
-                if (mpVal === selectedMegapixels) {
-                    btn.className = 'mp-option-btn py-2.5 px-2 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-emerald-900 text-center transition cursor-pointer';
-                } else {
-                    btn.className = 'mp-option-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-center transition cursor-pointer';
-                }
-            });
-
-            const bppIndex = Math.max(0, BPP_STEPS.indexOf(selectedBpp));
-            bppSlider.value = String(bppIndex);
-            bppBadge.textContent = `${selectedBpp} bpp`;
-
-            const descriptions = {
-                4: '16 niveles tonales (2 píxeles por byte). Archivo ultra ligero ideal para envío rápido.',
-                8: '256 niveles tonales (1 byte por píxel). Nitidez vectorial perfecta y bajo peso.',
-                16: '65,536 niveles de alta precisión (2 bytes por píxel). Suavizado superior.',
-                24: 'Color verdadero RGB de 16.7 millones de colores (3 bytes por píxel).'
-            };
-            bppDescription.textContent = descriptions[selectedBpp] || descriptions[8];
-
-            // Calculate realistic efficient vector PNG size range
-            const baseKb = Math.round((selectedMegapixels * selectedBpp * 14));
-            const maxKb = Math.round(baseKb * 1.65);
-            if (maxKb >= 1024) {
-                estimatedSize.textContent = `~${(baseKb / 1024).toFixed(2)} MB – ${(maxKb / 1024).toFixed(2)} MB`;
-            } else {
-                estimatedSize.textContent = `~${baseKb} KB – ${maxKb} KB`;
-            }
-        }
-
-        mpOptionBtns.forEach((btn) => {
-            btn.addEventListener('click', () => {
-                selectedMegapixels = Number(btn.getAttribute('data-mp'));
-                updateResolutionUI();
-                saveAppState();
-            });
+        [elClientName, elIssuerName, elIssuerPhone, elIssuerAddress, elInvoiceDate, elShippingNote].forEach(el => {
+            el.addEventListener('input', () => saveAppState());
         });
 
-        bppSlider.addEventListener('input', () => {
-            const idx = Number(bppSlider.value);
-            selectedBpp = BPP_STEPS[idx] || 8;
-            updateResolutionUI();
+        shippingInput.addEventListener('input', () => calculateTotals(true));
+        btnAddRow.addEventListener('click', () => {
+            addRow({ qty: '', desc: '', price: '' });
             saveAppState();
         });
 
-        bppStepBtns.forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const idx = Number(btn.getAttribute('data-bpp-idx'));
-                selectedBpp = BPP_STEPS[idx] || 8;
-                updateResolutionUI();
-                saveAppState();
-            });
-        });
-
-        // Mobile Sidebar Drawer Toggle
-        const settingsSidebar = document.getElementById('settings-sidebar');
-        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-        const btnOpenSidebar = document.getElementById('btn-open-sidebar');
-        const btnCloseSidebar = document.getElementById('btn-close-sidebar');
-
-        function toggleSidebar(open) {
-            if (open) {
-                settingsSidebar.classList.remove('translate-x-full');
-                sidebarBackdrop.classList.remove('hidden');
-            } else {
-                settingsSidebar.classList.add('translate-x-full');
-                sidebarBackdrop.classList.add('hidden');
-            }
-        }
-
-        btnOpenSidebar.addEventListener('click', () => toggleSidebar(true));
-        btnCloseSidebar.addEventListener('click', () => toggleSidebar(false));
-        sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
-
-        // Logo Upload Handler
-        document.getElementById('btn-change-logo').addEventListener('click', () => logoFileInput.click());
-        document.getElementById('logo-container').addEventListener('click', () => logoFileInput.click());
-
-        logoFileInput.addEventListener('change', (e) => {
+        logoUpload.addEventListener('change', (e) => {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (ev) => {
-                customLogo.src = ev.target.result;
-                customLogo.classList.remove('hidden');
-                defaultLogo.classList.add('hidden');
+                customLogoDataUrl = ev.target.result;
+                renderCustomLogoPreview(customLogoDataUrl);
                 saveAppState();
             };
             reader.readAsDataURL(file);
         });
 
-        // ============================================================================
-        // Native 2D Vector Renderer & Custom Bit-Depth PNG Encoder
-        // ============================================================================
-        function splitLongWordToFit(ctx, word, maxWidth) {
-            if (ctx.measureText(word).width <= maxWidth) return [word];
-            const chunks = [];
-            let current = '';
-            for (let i = 0; i < word.length; i++) {
-                const test = current + word[i];
-                if (ctx.measureText(test).width > maxWidth && current.length > 0) {
-                    chunks.push(current);
-                    current = word[i];
+        // ==========================================
+        // 4. INTERFAZ DEL MENÚ LATERAL DERECHO (MP / BPP)
+        // ==========================================
+        function openSidebar() {
+            sidebar.classList.remove('translate-x-full');
+            overlay.classList.remove('hidden');
+        }
+        function closeSidebar() {
+            sidebar.classList.add('translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        btnToggleSettings.addEventListener('click', openSidebar);
+        btnCloseSettings.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        function updateSettingsUI() {
+            mpBtns.forEach(btn => {
+                const mp = parseFloat(btn.dataset.mp);
+                if (mp === settings.mp) {
+                    btn.className = 'mp-btn py-2.5 px-3 rounded-xl font-bold text-sm border-2 bg-slate-900 text-white border-slate-900 shadow-sm transition-all';
                 } else {
-                    current = test;
+                    btn.className = 'mp-btn py-2.5 px-3 rounded-xl font-bold text-sm border-2 bg-white text-slate-700 border-slate-300 hover:border-slate-900 transition-all';
                 }
-            }
-            if (current) chunks.push(current);
-            return chunks;
+            });
+
+            mpLabelActive.textContent = `${settings.mp} MP`;
+            const targetPixels = settings.mp * 1000000;
+            const aspect = 820 / 640;
+            const w = Math.round(Math.sqrt(targetPixels * aspect));
+            const h = Math.round(targetPixels / w);
+            resDimensions.textContent = `Dimensiones aprox.: ${w} × ${h} px`;
+
+            const bppIdx = BPP_STEPS.indexOf(settings.bpp);
+            bppSlider.value = bppIdx !== -1 ? bppIdx : 3;
+            bppBadge.textContent = `${settings.bpp} bpp`;
+            resBadgeTop.textContent = `${settings.mp} MP · ${settings.bpp} bpp`;
+
+            const descriptions = {
+                1: '<strong>1 bit (B/N):</strong> Blanco y negro puro, ultra ligero.',
+                5: '<strong>5 bits (Escala de grises):</strong> 32 niveles de gris puro, ideal para ahorrar espacio sin colores.',
+                15: '<strong>15 bits (Color):</strong> 5 bits por canal RGB, color optimizado para buen peso y calidad aceptable.',
+                24: '<strong>24 bits (Color verdadero):</strong> 8 bits por canal RGB, máxima fidelidad sin compresión de color.'
+            };
+            bppInfo.innerHTML = descriptions[settings.bpp] || descriptions[24];
         }
 
-        function wrapCanvasLines(ctx, text, maxWidth) {
-            const rawLines = String(text || '').split('\n');
+        mpBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                settings.mp = parseFloat(btn.dataset.mp);
+                updateSettingsUI();
+                saveAppState();
+            });
+        });
+
+        bppSlider.addEventListener('input', (e) => {
+            const idx = parseInt(e.target.value, 10);
+            settings.bpp = BPP_STEPS[idx] || 24;
+            updateSettingsUI();
+            saveAppState();
+        });
+
+        // ==========================================
+        // 5. MOTOR DE RENDERIZADO VECTORIAL EN CANVAS
+        // ==========================================
+        function wrapTextLines(ctx, text, maxWidth) {
+            const rawText = String(text || '').trim();
+            if (!rawText) return [''];
+            const words = rawText.split(/\s+/);
             const lines = [];
-            rawLines.forEach((raw) => {
-                const rawWords = raw.split(/\s+/).filter(Boolean);
-                if (rawWords.length === 0) {
-                    lines.push('');
-                    return;
-                }
-                const words = [];
-                rawWords.forEach((w) => {
-                    words.push(...splitLongWordToFit(ctx, w, maxWidth));
-                });
+            let currentLine = '';
 
-                let current = words[0];
-                for (let i = 1; i < words.length; i++) {
-                    const test = current + ' ' + words[i];
-                    if (ctx.measureText(test).width <= maxWidth) {
-                        current = test;
-                    } else {
-                        lines.push(current);
-                        current = words[i];
+            for (let i = 0; i < words.length; i++) {
+                let word = words[i];
+                while (ctx.measureText(word).width > maxWidth && word.length > 1) {
+                    let part = '';
+                    for (let c = 0; c < word.length; c++) {
+                        if (ctx.measureText(part + word[c]).width <= maxWidth) {
+                            part += word[c];
+                        } else {
+                            break;
+                        }
                     }
+                    if (!part) part = word[0];
+                    if (currentLine) {
+                        lines.push(currentLine);
+                        currentLine = '';
+                    }
+                    lines.push(part);
+                    word = word.slice(part.length);
                 }
-                lines.push(current);
-            });
-            return lines;
+
+                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                if (ctx.measureText(testLine).width <= maxWidth) {
+                    currentLine = testLine;
+                } else {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+            return lines.length ? lines : [''];
         }
 
-        function drawOpenTrapezoidLogo(ctx, x, y, size) {
-            ctx.save();
-            ctx.translate(x, y);
-            const s = size / 100;
-            ctx.scale(s, s);
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.moveTo(8, 18);
-            ctx.lineTo(92, 18);
-            ctx.lineTo(92, 26);
-            ctx.lineTo(63, 86);
-            ctx.lineTo(52, 86);
-            ctx.lineTo(77, 31);
-            ctx.lineTo(23, 31);
-            ctx.lineTo(48, 86);
-            ctx.lineTo(37, 86);
-            ctx.lineTo(8, 26);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
-
-        async function renderInvoiceVectorCanvas(megapixels) {
+        async function renderInvoiceVectorCanvas(state, targetMP) {
             if (document.fonts && document.fonts.ready) {
-                try { await document.fonts.ready; } catch (e) {}
+                await document.fonts.ready;
             }
 
-            const state = collectCurrentInvoiceState();
-            const baseW = 820;
+            const baseW = 860;
             const padX = 36;
-            const padY = 36;
-            const boxW = baseW - padX * 2; // 748px
-            const halfW = Math.round(boxW / 2);
+            const padY = 32;
+            const boxW = baseW - padX * 2; // 788px
 
-            // Pre-measure dynamic heights using an offscreen context
+            const colW1 = Math.round(boxW * 0.10);
+            const colW2 = Math.round(boxW * 0.50);
+            const colW3 = Math.round(boxW * 0.20);
+            const colW4 = boxW - colW1 - colW2 - colW3;
+
+            const c1X = padX;
+            const c2X = c1X + colW1;
+            const c3X = c2X + colW2;
+            const c4X = c3X + colW3;
+
+            // Medición previa de textos
             const measureCanvas = document.createElement('canvas');
-            const mCtx = measureCanvas.getContext('2d');
+            const mctx = measureCanvas.getContext('2d');
 
-            // Measure client, sender, and address lines so the info box never overflows
-            mCtx.font = '700 20px Inter, sans-serif';
-            const clientLines = wrapCanvasLines(mCtx, state.clientName, halfW - 40);
+            mctx.font = '700 21px Inter, sans-serif';
+            const clientLines = wrapTextLines(mctx, state.clientName, (boxW / 2) - 48);
 
-            mCtx.font = '600 14px Inter, sans-serif';
-            const senderLines = wrapCanvasLines(mCtx, state.senderName, halfW - 40);
-            const addrLines = wrapCanvasLines(mCtx, state.senderAddress, halfW - 108);
+            mctx.font = '500 14px Inter, sans-serif';
+            const issuerNameLines = wrapTextLines(mctx, state.issuerName, (boxW / 2) - 48);
 
-            const leftInfoNeededH = 44 + clientLines.length * 24 + 16;
-            const senderExtraH = Math.max(0, (senderLines.length - 1) * 18);
-            const rightInfoNeededH = 82 + senderExtraH + addrLines.length * 18 + 16;
+            mctx.font = '600 14px Inter, sans-serif';
+            const addressLines = wrapTextLines(mctx, state.issuerAddress, (boxW / 2) - 120);
 
-            const colW0 = Math.round(boxW * 0.10);
-            const colW1 = Math.round(boxW * 0.50);
-            const colW2 = Math.round(boxW * 0.20);
-            const colW3 = boxW - colW0 - colW1 - colW2;
+            const leftInfoH = 54 + clientLines.length * 26;
+            const rightInfoH = 42 + issuerNameLines.length * 20 + 24 + addressLines.length * 20 + 18;
+            const infoBoxH = Math.max(126, leftInfoH, rightInfoH);
 
-            mCtx.font = '700 14px Inter, sans-serif';
-            const rowMetrics = state.rows.map((r) => {
-                const lines = wrapCanvasLines(mCtx, r.description, colW1 - 32);
-                const h = Math.max(40, lines.length * 20 + 18);
-                return { ...r, descLines: lines, height: h };
+            mctx.font = '700 14.5px Inter, sans-serif';
+            const preparedRows = state.rows.map(r => {
+                const lines = wrapTextLines(mctx, r.desc, colW2 - 32);
+                const rowH = Math.max(46, lines.length * 20 + 22);
+                return { ...r, lines, rowH };
             });
 
-            mCtx.font = '600 13px Inter, sans-serif';
-            const noteLines = wrapCanvasLines(mCtx, state.shippingNote, boxW - 105);
+            const headerBoxH = 106; 
+            const tableHeaderH = 42;
+            const rowsTotalH = preparedRows.reduce((acc, r) => acc + r.rowH, 0);
+            const mainBoxH = headerBoxH + infoBoxH + tableHeaderH + rowsTotalH;
 
-            const headerH = 92;
-            const infoH = Math.max(128, leftInfoNeededH, rightInfoNeededH);
-            const tableHeaderH = 40;
-            const rowsTotalH = rowMetrics.reduce((acc, r) => acc + r.height, 0);
-            const mainBoxH = headerH + infoH + tableHeaderH + rowsTotalH;
-            const totalsH = 92;
-            const footerH = Math.max(95, 70 + noteLines.length * 18);
-            const baseH = padY * 2 + mainBoxH + totalsH + footerH;
+            const shipRowH = 42;
+            const grandRowH = 48;
 
-            const aspect = baseW / baseH;
-            const targetW = Math.round(Math.sqrt(megapixels * 1000000 * aspect));
-            const targetH = Math.round(targetW / aspect);
-            const scale = targetW / baseW;
+            mctx.font = '600 13.5px Inter, sans-serif';
+            const noteLines = wrapTextLines(mctx, state.shippingNote, boxW - 140);
+            const footerBlockH = 85 + noteLines.length * 19;
+
+            const baseH = padY + mainBoxH + shipRowH + grandRowH + footerBlockH + padY;
+
+            // Escala exacta según los Megapíxeles elegidos (1.5 MP, 4 MP, 6 MP)
+            const targetPixels = (targetMP || 1.5) * 1000000;
+            const scale = Math.sqrt(targetPixels / (baseW * baseH));
 
             const canvas = document.createElement('canvas');
-            canvas.width = targetW;
-            canvas.height = targetH;
-            const ctx = canvas.getContext('2d', { alpha: false });
+            canvas.width = Math.max(1, Math.round(baseW * scale));
+            canvas.height = Math.max(1, Math.round(baseH * scale));
 
-            ctx.save();
-            ctx.scale(scale, scale);
+            const ctx = canvas.getContext('2d');
+            ctx.scale(canvas.width / baseW, canvas.height / baseH);
 
-            // Pure white background
+            // Fondo Blanco Puro
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, baseW, baseH);
 
-            const boxX = padX;
-            const boxY = padY;
+            let curY = padY;
 
-            // 1. Header section
+            // 1. ENCABEZADO
             ctx.fillStyle = '#0f172a';
-            ctx.font = '800 24px Inter, sans-serif';
+            ctx.font = '800 26px Inter, sans-serif';
+            ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            ctx.fillText('FACTURA', boxX + 24, boxY + 20);
-            ctx.fillText('PROFORMA', boxX + 24, boxY + 48);
+            ctx.fillText('FACTURA', padX + 24, curY + 24);
+            ctx.fillText('PROFORMA', padX + 24, curY + 54);
 
-            // Top-right logo (73px height, preserving aspect ratio for custom logos)
-            const maxLogoH = 73;
-            const maxLogoW = 160;
+            // Logo en esquina superior derecha (73x73px) centrado verticalmente
+            const logoSize = 73;
+            const logoRightX = padX + boxW - 24 - logoSize;
+            const logoTopY = curY + (headerBoxH - logoSize) / 2;
 
-            if (
-                state.customLogoSrc &&
-                !customLogo.classList.contains('hidden') &&
-                customLogo.complete &&
-                customLogo.naturalWidth > 0 &&
-                customLogo.naturalHeight > 0
-            ) {
-                const ratio = Math.min(maxLogoW / customLogo.naturalWidth, maxLogoH / customLogo.naturalHeight);
-                const drawW = customLogo.naturalWidth * ratio;
-                const drawH = customLogo.naturalHeight * ratio;
-                const drawX = boxX + boxW - 24 - drawW;
-                const drawY = boxY + (headerH - drawH) / 2;
-                ctx.drawImage(customLogo, drawX, drawY, drawW, drawH);
+            if (state.customLogoDataUrl) {
+                try {
+                    const img = new Image();
+                    img.src = state.customLogoDataUrl;
+                    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+                    const ratio = Math.min(150 / img.width, logoSize / img.height);
+                    const drawW = img.width * ratio;
+                    const drawH = img.height * ratio;
+                    ctx.drawImage(img, padX + boxW - 24 - drawW, logoTopY + (logoSize - drawH) / 2, drawW, drawH);
+                } catch (e) {}
             } else {
-                const logoX = boxX + boxW - 24 - maxLogoH;
-                const logoY = boxY + (headerH - maxLogoH) / 2;
-                drawOpenTrapezoidLogo(ctx, logoX, logoY, maxLogoH);
+                ctx.save();
+                ctx.translate(logoRightX, logoTopY);
+                ctx.scale(logoSize / 100, logoSize / 100);
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.moveTo(6, 16);
+                ctx.lineTo(94, 16);
+                ctx.lineTo(63, 86);
+                ctx.lineTo(53, 86);
+                ctx.lineTo(78, 27);
+                ctx.lineTo(22, 27);
+                ctx.lineTo(47, 86);
+                ctx.lineTo(37, 86);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
             }
 
-            // Header bottom border
+            curY += headerBoxH;
             ctx.strokeStyle = '#0f172a';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(boxX, boxY + headerH);
-            ctx.lineTo(boxX + boxW, boxY + headerH);
+            ctx.moveTo(padX, curY);
+            ctx.lineTo(padX + boxW, curY);
             ctx.stroke();
 
-            // 2. Client & Sender Horizontal Block
-            const infoY = boxY + headerH;
-
-            // Left: Client
+            // 2. BLOQUE CLIENTE / EMISOR
+            const infoStartY = curY;
             ctx.fillStyle = '#475569';
-            ctx.font = '500 14px Inter, sans-serif';
-            ctx.fillText('Datos del cliente:', boxX + 20, infoY + 18);
+            ctx.font = '500 13.5px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Datos del cliente:', padX + 24, infoStartY + 18);
 
             ctx.fillStyle = '#0f172a';
-            ctx.font = '700 20px Inter, sans-serif';
+            ctx.font = '700 21px Inter, sans-serif';
             clientLines.forEach((line, idx) => {
-                ctx.fillText(line, boxX + 20, infoY + 44 + idx * 24);
+                ctx.fillText(line, padX + 24, infoStartY + 42 + idx * 26);
             });
 
-            // Center vertical separator line
+            // Línea vertical central con margen superior e inferior
+            const midX = padX + boxW / 2;
             ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.6;
             ctx.beginPath();
-            ctx.moveTo(boxX + halfW, infoY + 12);
-            ctx.lineTo(boxX + halfW, infoY + infoH - 12);
+            ctx.moveTo(midX, infoStartY + 14);
+            ctx.lineTo(midX, infoStartY + infoBoxH - 14);
             ctx.stroke();
 
-            // Right: Sender
-            const rightX = boxX + halfW + 20;
+            // Datos del emisor a la derecha
+            const rightColX = midX + 24;
+            let ry = infoStartY + 16;
             ctx.fillStyle = '#0f172a';
             ctx.font = '700 14px Inter, sans-serif';
-            ctx.fillText('Datos:', rightX, infoY + 16);
+            ctx.fillText('Datos:', rightColX, ry);
+            ry += 22;
 
             ctx.fillStyle = '#1e293b';
-            ctx.font = '600 14px Inter, sans-serif';
-            senderLines.forEach((line, idx) => {
-                ctx.fillText(line, rightX, infoY + 38 + idx * 18);
+            ctx.font = '500 14px Inter, sans-serif';
+            issuerNameLines.forEach(line => {
+                ctx.fillText(line, rightColX, ry);
+                ry += 20;
             });
 
-            const phoneY = infoY + 60 + senderExtraH;
-            ctx.fillStyle = '#334155';
+            ry += 2;
+            ctx.fillStyle = '#475569';
             ctx.font = '500 14px Inter, sans-serif';
-            ctx.fillText('Cel:', rightX, phoneY);
+            ctx.fillText('Cel:', rightColX, ry);
             ctx.fillStyle = '#0f172a';
             ctx.font = '700 14px Inter, sans-serif';
-            ctx.fillText(state.senderPhone, rightX + 32, phoneY);
+            ctx.fillText(state.issuerPhone || '', rightColX + 32, ry);
+            ry += 22;
 
-            const addrY = infoY + 82 + senderExtraH;
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = '#475569';
             ctx.font = '500 14px Inter, sans-serif';
-            ctx.fillText('Dirección:', rightX, addrY);
+            ctx.fillText('Dirección:', rightColX, ry);
             ctx.fillStyle = '#0f172a';
             ctx.font = '600 14px Inter, sans-serif';
-            addrLines.forEach((line, idx) => {
-                ctx.fillText(line, rightX + 72, addrY + idx * 18);
+            addressLines.forEach((line, i) => {
+                ctx.fillText(line, rightColX + 74, ry + i * 20);
             });
 
-            // Info bottom border
+            curY += infoBoxH;
             ctx.strokeStyle = '#0f172a';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(boxX, infoY + infoH);
-            ctx.lineTo(boxX + boxW, infoY + infoH);
+            ctx.moveTo(padX, curY);
+            ctx.lineTo(padX + boxW, curY);
             ctx.stroke();
 
-            // 3. Product Table Header
-            const thY = infoY + infoH;
-            const c1X = boxX + colW0;
-            const c2X = c1X + colW1;
-            const c3X = c2X + colW2;
-
+            // 3. ENCABEZADO DE LA TABLA
+            const thY = curY;
             ctx.fillStyle = '#0f172a';
             ctx.font = '700 14px Inter, sans-serif';
+            ctx.textBaseline = 'middle';
+
             ctx.textAlign = 'center';
-            ctx.fillText('Cant.', boxX + colW0 / 2, thY + 13);
+            ctx.fillText('Cant.', c1X + colW1 / 2, thY + tableHeaderH / 2);
             ctx.textAlign = 'left';
-            ctx.fillText('Descripción', c1X + 16, thY + 13);
+            ctx.fillText('Descripción', c2X + 16, thY + tableHeaderH / 2);
             ctx.textAlign = 'center';
-            ctx.fillText('Precio uni.', c2X + colW2 / 2, thY + 13);
-            ctx.fillText('TOTAL', c3X + colW3 / 2, thY + 13);
+            ctx.fillText('Precio uni.', c3X + colW3 / 2, thY + tableHeaderH / 2);
+            ctx.fillText('TOTAL', c4X + colW4 / 2, thY + tableHeaderH / 2);
 
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(c2X, thY); ctx.lineTo(c2X, thY + tableHeaderH);
+            ctx.moveTo(c3X, thY); ctx.lineTo(c3X, thY + tableHeaderH);
+            ctx.moveTo(c4X, thY); ctx.lineTo(c4X, thY + tableHeaderH);
+            ctx.stroke();
+
+            curY += tableHeaderH;
             ctx.strokeStyle = '#0f172a';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(boxX, thY + tableHeaderH);
-            ctx.lineTo(boxX + boxW, thY + tableHeaderH);
+            ctx.moveTo(padX, curY);
+            ctx.lineTo(padX + boxW, curY);
             ctx.stroke();
 
-            // 4. Product Rows
-            let curY = thY + tableHeaderH;
+            // 4. FILAS DE PRODUCTOS (Todas en fondo blanco #ffffff y borde negro)
             let subtotal = 0;
+            preparedRows.forEach((r, idx) => {
+                const rowY = curY;
+                const rowH = r.rowH;
+                const midRowY = rowY + rowH / 2;
 
-            rowMetrics.forEach((row, idx) => {
-                // Tinted backgrounds for Price and Total columns
-                ctx.fillStyle = '#f8fafc';
-                ctx.fillRect(c2X, curY, colW2, row.height);
-                ctx.fillStyle = '#f1f5f9';
-                ctx.fillRect(c3X, curY, colW3, row.height);
+                // Fondo blanco garantizado en toda la fila
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(padX, rowY, boxW, rowH);
 
-                const q = parseFloat(row.qty);
-                const p = parseFloat(row.price);
-                const hasTotal = !isNaN(q) && q > 0 && !isNaN(p) && p >= 0;
-                const lineTotal = hasTotal ? q * p : 0;
-                if (hasTotal) subtotal += lineTotal;
+                const qty = parseFloat(r.qty);
+                const price = parseFloat(r.price);
+                const validLine = !isNaN(qty) && qty > 0 && !isNaN(price) && price >= 0;
+                const lineTotal = validLine ? qty * price : 0;
+                if (validLine) subtotal += lineTotal;
 
-                // Vertically center single-line cells (Cant, Precio, Total) within row.height
-                const singleLineY = curY + (row.height - 14) / 2;
-
+                // Cantidad
                 ctx.fillStyle = '#0f172a';
-                ctx.font = '700 14px Inter, sans-serif';
+                ctx.font = '700 14.5px Inter, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(row.qty || ''), boxX + colW0 / 2, singleLineY);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(r.qty ? String(r.qty) : '', c1X + colW1 / 2, midRowY);
 
+                // Descripción
                 ctx.textAlign = 'left';
-                const descBlockH = row.descLines.length * 20 - 6;
-                const descStartY = curY + Math.max(11, (row.height - descBlockH) / 2);
-                row.descLines.forEach((dLine, lIdx) => {
-                    ctx.fillText(dLine, c1X + 16, descStartY + lIdx * 20);
+                const totalTextH = r.lines.length * 20;
+                let lineY = rowY + (rowH - totalTextH) / 2 + 10;
+                r.lines.forEach(line => {
+                    ctx.fillText(line, c2X + 16, lineY);
+                    lineY += 20;
                 });
 
-                ctx.font = '500 14px Inter, sans-serif';
-                const formattedPrice = (!isNaN(p) && String(row.price).trim() !== '')
-                    ? `C$ ${formatCurrencyNumber(p)}`
-                    : 'C$';
-                ctx.fillText(formattedPrice, c2X + 14, singleLineY);
-
-                if (hasTotal) {
-                    ctx.font = '700 14px Inter, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`C$ ${formatCurrencyNumber(lineTotal)}`, c3X + colW3 / 2, singleLineY);
+                // Precio unitario
+                ctx.fillStyle = '#1e293b';
+                ctx.font = '500 14.5px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                if (r.price !== undefined && String(r.price).trim() !== '') {
+                    ctx.fillText('C$ ' + formatNumber(parseFloat(r.price) || 0), c3X + 14, midRowY);
+                } else {
+                    ctx.fillText('C$', c3X + 14, midRowY);
                 }
 
-                curY += row.height;
+                // Total de la fila (sobre fondo blanco)
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '700 14.5px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                if (validLine) {
+                    ctx.fillText('C$ ' + formatNumber(lineTotal), c4X + colW4 / 2, midRowY);
+                }
 
-                if (idx < rowMetrics.length - 1) {
-                    ctx.strokeStyle = '#475569';
-                    ctx.lineWidth = 1;
+                // Líneas verticales internas de la fila (Negro #0f172a)
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(c2X, rowY); ctx.lineTo(c2X, rowY + rowH);
+                ctx.moveTo(c3X, rowY); ctx.lineTo(c3X, rowY + rowH);
+                ctx.moveTo(c4X, rowY); ctx.lineTo(c4X, rowY + rowH);
+                ctx.stroke();
+
+                // Línea horizontal entre filas (Negro #0f172a)
+                if (idx < preparedRows.length - 1) {
                     ctx.beginPath();
-                    ctx.moveTo(boxX, curY);
-                    ctx.lineTo(boxX + boxW, curY);
+                    ctx.moveTo(padX, rowY + rowH);
+                    ctx.lineTo(padX + boxW, rowY + rowH);
                     ctx.stroke();
                 }
+
+                curY += rowH;
             });
 
-            // Vertical column lines inside table
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1.2;
-            [c1X, c2X, c3X].forEach((vx) => {
-                ctx.beginPath();
-                ctx.moveTo(vx, thY);
-                ctx.lineTo(vx, curY);
-                ctx.stroke();
-            });
-
-            // Outer frame around header + info + table
+            // Marco principal exterior de 2.2px (Negro)
             ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(boxX, boxY, boxW, mainBoxH);
+            ctx.lineWidth = 2.2;
+            ctx.strokeRect(padX, padY, boxW, mainBoxH);
 
-            // 5. Symmetric Shipping & Grand Total Block (Aligned with c2X & c3X)
-            const shipH = 42;
-            const grandH = 50;
-            const shipVal = parseFloat(state.shipping) || 0;
-            const grandTotal = subtotal + shipVal;
+            // 5. SECCIÓN DE ENVÍO Y TOTAL C$
+            const shipVal = parseFloat(state.shipping);
+            const shipping = (!isNaN(shipVal) && shipVal >= 0) ? shipVal : 0;
+            const grandTotal = subtotal + shipping;
 
-            // Shipping row
-            ctx.fillStyle = '#f1f5f9';
-            ctx.fillRect(c3X, curY, colW3, shipH);
+            // Fila Envío (Fondo blanco puro)
+            const shipY = curY;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(c3X, shipY, colW3 + colW4, shipRowH);
 
             ctx.fillStyle = '#1e293b';
             ctx.font = '600 15px Inter, sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText('Envío:', c3X - 14, curY + 13);
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Envío:', c4X - 14, shipY + shipRowH / 2);
 
             ctx.fillStyle = '#0f172a';
             ctx.font = '700 15px Inter, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`C$ ${formatCurrencyNumber(shipVal)}`, c3X + colW3 / 2, curY + 13);
+            ctx.fillText('C$ ' + formatNumber(shipping), c4X + colW4 / 2, shipY + shipRowH / 2);
 
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 2;
+            // Bordes de Envío
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.4;
             ctx.beginPath();
-            ctx.moveTo(c3X, curY);
-            ctx.lineTo(c3X, curY + shipH);
-            ctx.moveTo(boxX + boxW, curY);
-            ctx.lineTo(boxX + boxW, curY + shipH);
+            ctx.moveTo(c3X, shipY + shipRowH);
+            ctx.lineTo(padX + boxW, shipY + shipRowH);
             ctx.stroke();
-
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.moveTo(c2X, curY + shipH);
-            ctx.lineTo(boxX + boxW, curY + shipH);
-            ctx.stroke();
-
-            // Grand total row
-            const gtY = curY + shipH;
-            ctx.fillStyle = '#cbd5e1';
-            ctx.fillRect(c3X, gtY, colW3, grandH);
 
             ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(c3X, gtY, colW3, grandH);
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(c4X, shipY);
+            ctx.lineTo(c4X, shipY + shipRowH);
+            ctx.moveTo(padX + boxW, shipY);
+            ctx.lineTo(padX + boxW, shipY + shipRowH);
+            ctx.stroke();
+
+            // Fila TOTAL C$ (Única casilla con fondo gris claro neutro #e5e7eb)
+            const grandY = shipY + shipRowH;
+            ctx.fillStyle = '#e5e7eb';
+            ctx.fillRect(c4X, grandY, colW4, grandRowH);
+
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.2;
+            ctx.strokeRect(c4X, grandY, colW4, grandRowH);
 
             ctx.fillStyle = '#0f172a';
             ctx.font = '800 18px Inter, sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText('TOTAL C$', c3X - 14, gtY + 16);
+            ctx.fillText('TOTAL C$', c4X - 14, grandY + grandRowH / 2);
 
+            ctx.font = '800 18px Inter, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`C$ ${formatCurrencyNumber(grandTotal)}`, c3X + colW3 / 2, gtY + 16);
+            ctx.fillText('C$ ' + formatNumber(grandTotal), c4X + colW4 / 2, grandY + grandRowH / 2);
 
-            // 6. Footer Notes
-            const footY = gtY + grandH + 18;
+            // 6. NOTAS AL PIE (Izquierda)
+            let footY = grandY + grandRowH + 18;
+            ctx.textBaseline = 'top';
             ctx.textAlign = 'left';
-            ctx.fillStyle = '#0f172a';
-            ctx.font = '700 13px Inter, sans-serif';
-            ctx.fillText(`Fecha: ${state.invoiceDate}`, boxX, footY);
 
-            ctx.fillText('Nota de envío:', boxX, footY + 22);
-            ctx.font = '600 13px Inter, sans-serif';
-            noteLines.forEach((nLine, nIdx) => {
-                ctx.fillText(nLine, boxX + 98, footY + 22 + nIdx * 18);
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 13.5px Inter, sans-serif';
+            ctx.fillText('Fecha: ' + (state.invoiceDate || ''), padX, footY);
+            footY += 24;
+
+            ctx.font = '700 13.5px Inter, sans-serif';
+            ctx.fillText('Nota de envío:', padX, footY);
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '600 13.5px Inter, sans-serif';
+            noteLines.forEach((line, idx) => {
+                ctx.fillText(line, padX + 102, footY + idx * 19);
             });
 
-            const validityY = footY + 34 + noteLines.length * 18;
+            footY += noteLines.length * 19 + 18;
             ctx.fillStyle = '#334155';
-            ctx.font = '600 12px Inter, sans-serif';
-            ctx.fillText('Proforma válida por 15 días a partir de la fecha de emisión', boxX, validityY);
+            ctx.font = '500 12.5px Inter, sans-serif';
+            ctx.fillText('Proforma válida por 15 días a partir de la fecha de emisión', padX, footY);
 
-            ctx.restore();
             return canvas;
         }
 
-        // Quantize canvas channels accurately according to selected BPP (4, 8, 16, 24)
-        function applyBitDepthQuantization(canvas, bpp) {
-            if (bpp >= 24) return;
+        // Cuantizador con protección estricta de grises y blancos neutros (evita cualquier tinte morado)
+        function applyBppQuantization(canvas, bpp) {
+            if (bpp >= 24) return canvas.toDataURL('image/png', 1.0);
+
             const ctx = canvas.getContext('2d');
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const d = imgData.data;
-
-            if (bpp === 4) {
-                // 4 bpp: 16 precise tonal levels
-                const step = 255 / 15;
+            
+            if (bpp === 1) {
+                // 1 bit: Blanco y negro puro
                 for (let i = 0; i < d.length; i += 4) {
-                    d[i] = Math.round(Math.round(d[i] / step) * step);
-                    d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step);
-                    d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step);
+                    const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                    const val = lum > 160 ? 255 : 0;
+                    d[i] = d[i + 1] = d[i + 2] = val;
                 }
-            } else if (bpp === 8) {
-                // 8 bpp: 256 luminance-preserving levels when no custom color logo is active
-                const hasCustomLogo = !customLogo.classList.contains('hidden') && Boolean(customLogo.src);
-                if (!hasCustomLogo) {
-                    for (let i = 0; i < d.length; i += 4) {
-                        // Preserve exact cool-slate tint on shaded cells or pure 256-level tone
-                        d[i] = d[i] & 0xff;
-                        d[i + 1] = d[i + 1] & 0xff;
-                        d[i + 2] = d[i + 2] & 0xff;
-                    }
-                } else {
-                    // RGB 3-3-2 quantization (8 bits total per pixel)
-                    for (let i = 0; i < d.length; i += 4) {
-                        d[i] = Math.round(Math.round((d[i] / 255) * 7) * (255 / 7));
-                        d[i + 1] = Math.round(Math.round((d[i + 1] / 255) * 7) * (255 / 7));
-                        d[i + 2] = Math.round(Math.round((d[i + 2] / 255) * 3) * (255 / 3));
-                    }
-                }
-            } else if (bpp === 16) {
-                // 16 bpp: RGB 5-6-5 high precision (65,536 colors)
+            } else if (bpp === 5) {
+                // 5 bits: Solo escala de grises (32 niveles)
+                const levels = 31;
                 for (let i = 0; i < d.length; i += 4) {
-                    d[i] = Math.round(Math.round((d[i] / 255) * 31) * (255 / 31));
-                    d[i + 1] = Math.round(Math.round((d[i + 1] / 255) * 63) * (255 / 63));
-                    d[i + 2] = Math.round(Math.round((d[i + 2] / 255) * 31) * (255 / 31));
+                    const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                    const q = Math.round(Math.round((lum / 255) * levels) * (255 / levels));
+                    d[i] = d[i + 1] = d[i + 2] = q;
+                }
+            } else if (bpp === 15) {
+                // 15 bits: Color (5 bits por canal R, G, B = 32 niveles por canal)
+                const levels = 31;
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i], g = d[i + 1], b = d[i + 2];
+                    // Proteger los colores neutros puros para evitar desviaciones
+                    if (Math.abs(r - g) <= 8 && Math.abs(g - b) <= 8 && Math.abs(r - b) <= 8) {
+                        const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                        const q = Math.round(Math.round((lum / 255) * levels) * (255 / levels));
+                        d[i] = d[i + 1] = d[i + 2] = q;
+                    } else {
+                        d[i] = Math.round(Math.round((r / 255) * levels) * (255 / levels));
+                        d[i + 1] = Math.round(Math.round((g / 255) * levels) * (255 / levels));
+                        d[i + 2] = Math.round(Math.round((b / 255) * levels) * (255 / levels));
+                    }
                 }
             }
-
             ctx.putImageData(imgData, 0, 0);
+            return canvas.toDataURL('image/png', 1.0);
         }
 
         async function exportProformaPng() {
-            const btnTop = document.getElementById('btn-download-png');
-            const btnSide = document.getElementById('btn-sidebar-download');
-            const origLabel = btnDownloadLabel.textContent;
+            const origHTML = btnExportPng.innerHTML;
+            btnExportPng.disabled = true;
+            btnExportPng.innerHTML = '<span>Generando PNG...</span>';
 
             try {
-                btnTop.disabled = true;
-                btnSide.disabled = true;
-                btnDownloadLabel.textContent = 'Generando PNG...';
+                await saveAppState();
+                const state = collectCurrentState();
 
-                const canvas = await renderInvoiceVectorCanvas(selectedMegapixels);
-                applyBitDepthQuantization(canvas, selectedBpp);
+                // Guardar copia completa en el historial (máximo 5 facturas)
+                await saveSnapshotToHistory(state);
 
-                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-                const url = URL.createObjectURL(blob);
-                const clientRaw = (document.getElementById('client-name')?.textContent || 'Cliente')
-                    .trim()
-                    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]+/g, '_');
+                const canvas = await renderInvoiceVectorCanvas(state, settings.mp);
+                const dataUrl = applyBppQuantization(canvas, settings.bpp);
 
+                const cleanClient = (state.clientName || 'Cliente').trim().replace(/[^a-zA-Z0-9_-]+/g, '_');
                 const link = document.createElement('a');
-                link.href = url;
-                link.download = `Proforma_${clientRaw}_${selectedMegapixels}MP_${selectedBpp}bpp.png`;
+                link.download = `Proforma_${cleanClient}_${settings.mp}MP.png`;
+                link.href = dataUrl;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                setTimeout(() => URL.revokeObjectURL(url), 3000);
             } catch (err) {
                 console.error('Error al exportar PNG:', err);
             } finally {
-                btnTop.disabled = false;
-                btnSide.disabled = false;
-                btnDownloadLabel.textContent = origLabel;
+                btnExportPng.disabled = false;
+                btnExportPng.innerHTML = origHTML;
             }
         }
 
-        // ============================================================================
-        // PWA Transparent Icon & Manifest Setup
-        // ============================================================================
-        function generateTransparentLogoIcon(size) {
-            const c = document.createElement('canvas');
-            c.width = size;
-            c.height = size;
-            const ctx = c.getContext('2d');
-            ctx.clearRect(0, 0, size, size);
-            drawOpenTrapezoidLogo(ctx, 0, 0, size);
-            return c.toDataURL('image/png');
-        }
+        btnExportPng.addEventListener('click', exportProformaPng);
 
-        function setupPwaAssets() {
+        // ==========================================
+        // 6. ÍCONOS Y MANIFIESTO PWA (Fondo transparente)
+        // ==========================================
+        function setupPWA() {
             try {
-                const icon192 = generateTransparentLogoIcon(192);
-                const icon512 = generateTransparentLogoIcon(512);
+                function createLogoPngUrl(size) {
+                    const c = document.createElement('canvas');
+                    c.width = size;
+                    c.height = size;
+                    const ctx = c.getContext('2d');
+                    ctx.clearRect(0, 0, size, size);
+                    ctx.scale(size / 100, size / 100);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.moveTo(6, 16);
+                    ctx.lineTo(94, 16);
+                    ctx.lineTo(63, 86);
+                    ctx.lineTo(53, 86);
+                    ctx.lineTo(78, 27);
+                    ctx.lineTo(22, 27);
+                    ctx.lineTo(47, 86);
+                    ctx.lineTo(37, 86);
+                    ctx.closePath();
+                    ctx.fill();
+                    return c.toDataURL('image/png');
+                }
 
-                document.getElementById('pwa-apple-icon').href = icon192;
-                document.getElementById('pwa-favicon').href = icon192;
+                const icon192 = createLogoPngUrl(192);
+                const icon512 = createLogoPngUrl(512);
 
-                const startUrl = new URL('./', window.location.href).href;
+                const appleIcon = document.createElement('link');
+                appleIcon.rel = 'apple-touch-icon';
+                appleIcon.href = icon192;
+                document.head.appendChild(appleIcon);
 
-                const manifestObj = {
-                    name: 'Generador de Factura Proforma',
+                const manifest = {
+                    name: 'Factura Proforma',
                     short_name: 'Proforma',
-                    description: 'Generador de Facturas Proforma en PNG de alta nitidez',
-                    start_url: startUrl,
-                    scope: startUrl,
+                    start_url: new URL('./', window.location.href).href,
+                    scope: new URL('./', window.location.href).href,
                     display: 'standalone',
                     background_color: '#ffffff',
                     theme_color: '#0f172a',
@@ -1358,92 +1456,18 @@
                     ]
                 };
 
-                const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
-                document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
-            } catch (e) {
-                // Non-critical in restricted frames
-            }
+                const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+                const manifestLink = document.createElement('link');
+                manifestLink.rel = 'manifest';
+                manifestLink.href = URL.createObjectURL(blob);
+                document.head.appendChild(manifestLink);
+            } catch (e) {}
         }
 
-        // Top and sidebar action buttons
-        document.getElementById('btn-add-row').addEventListener('click', () => {
-            const newRow = createRowElement({ qty: '', description: '', price: '' });
-            rowsContainer.appendChild(newRow);
-            calculateTotals(true);
-            const descField = newRow.querySelector('.row-desc');
-            if (descField) descField.focus();
+        window.addEventListener('DOMContentLoaded', () => {
+            setupPWA();
+            loadAppState();
         });
-
-        document.getElementById('btn-download-png').addEventListener('click', exportProformaPng);
-        document.getElementById('btn-sidebar-download').addEventListener('click', exportProformaPng);
-        shippingInput.addEventListener('input', () => calculateTotals(true));
-
-        // Initialize application state from Local Database without overwriting existing data
-        async function initApp() {
-            isInitializing = true;
-            const saved = await loadAppState();
-            rowsContainer.innerHTML = '';
-
-            if (saved) {
-                if (saved.clientName !== undefined) {
-                    document.getElementById('client-name').textContent = saved.clientName;
-                }
-                if (saved.senderName !== undefined) {
-                    document.getElementById('sender-name').textContent = saved.senderName;
-                }
-                if (saved.senderPhone !== undefined) {
-                    document.getElementById('sender-phone').textContent = saved.senderPhone;
-                }
-                if (saved.senderAddress !== undefined) {
-                    document.getElementById('sender-address').textContent = saved.senderAddress;
-                }
-                if (saved.invoiceDate !== undefined) {
-                    document.getElementById('invoice-date').textContent = saved.invoiceDate;
-                }
-                if (saved.shippingNote !== undefined) {
-                    document.getElementById('shipping-note').textContent = saved.shippingNote;
-                }
-                if (Array.isArray(saved.rows) && saved.rows.length > 0) {
-                    saved.rows.forEach((r) => {
-                        rowsContainer.appendChild(createRowElement(r));
-                    });
-                } else {
-                    initialRows.forEach((r) => {
-                        rowsContainer.appendChild(createRowElement(r));
-                    });
-                }
-                if (saved.shipping !== undefined) {
-                    shippingInput.value = saved.shipping;
-                }
-                if (saved.customLogoSrc) {
-                    customLogo.src = saved.customLogoSrc;
-                    customLogo.classList.remove('hidden');
-                    defaultLogo.classList.add('hidden');
-                }
-                if (MP_STEPS.includes(Number(saved.megapixels))) {
-                    selectedMegapixels = Number(saved.megapixels);
-                }
-                if (BPP_STEPS.includes(Number(saved.bpp))) {
-                    selectedBpp = Number(saved.bpp);
-                }
-                setDbStatusUI('BD Local: Datos cargados', false);
-            } else {
-                initialRows.forEach((r) => {
-                    rowsContainer.appendChild(createRowElement(r));
-                });
-            }
-
-            calculateTotals(false);
-            updateResolutionUI();
-            setupPwaAssets();
-            isInitializing = false;
-
-            if (!saved) {
-                saveAppState();
-            }
-        }
-
-        initApp();
     </script>
-</body>
-</html>
+
+</body></html>
