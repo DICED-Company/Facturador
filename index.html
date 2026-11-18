@@ -71,14 +71,14 @@
     </header>
 
     <!-- Botón Flotante Izquierdo: Historial de Facturas (Máx. 5) -->
-    <button id="btn-toggle-history" type="button" class="fixed bottom-16 left-4 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
+    <button id="btn-toggle-history" type="button" class="fixed top-24 sm:top-20 left-4 z-40 bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
         <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         <span>Historial</span>
         <span id="history-count-badge" class="bg-blue-600 text-white text-[11px] font-extrabold px-1.5 py-0.5 rounded-full leading-none">0/5</span>
     </button>
 
     <!-- Botón Flotante Derecho: Ajustes de Resolución en Móvil / Tablet -->
-    <button id="btn-toggle-settings" type="button" class="fixed bottom-16 right-4 z-40 lg:hidden bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
+    <button id="btn-toggle-settings" type="button" class="fixed top-24 sm:top-20 right-4 z-40 lg:hidden bg-slate-900 text-white px-4 py-2.5 rounded-full font-semibold text-sm shadow-xl flex items-center gap-2 hover:bg-slate-800 active:scale-95 transition-all">
         <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         <span>Resolución / MP</span>
     </button>
@@ -128,7 +128,7 @@
         <main class="flex-1 p-3 sm:p-6 overflow-hidden flex flex-col items-center">
             
             <!-- Aviso de ayuda -->
-            <div class="w-full max-w-[850px] bg-white rounded-xl px-4 py-3 mb-4 shadow-sm border border-slate-200/80 text-center text-xs sm:text-sm text-slate-500">
+            <div class="w-full max-w-[850px] bg-white rounded-xl px-4 py-3 mt-8 sm:mt-4 mb-4 shadow-sm border border-slate-200/80 text-center text-xs sm:text-sm text-slate-500">
                 Haz clic en los datos del cliente, productos, fecha o montos para editarlos. Los textos fijos están protegidos para evitar cambios accidentales.
                 <span id="db-status" class="inline-block ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">BD Local: Sincronizada</span>
             </div>
