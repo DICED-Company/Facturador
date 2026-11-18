@@ -34,6 +34,20 @@
         .invoice-input[type=number] {
             -moz-appearance: textfield;
         }
+        [contenteditable="true"] {
+            display: inline-block;
+            min-width: 120px;
+            min-height: 1.35em;
+            vertical-align: baseline;
+            cursor: text;
+        }
+        [contenteditable="true"]:empty::before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            font-weight: 400;
+            font-style: italic;
+            pointer-events: none;
+        }
         [contenteditable="true"]:hover {
             background-color: rgba(59, 130, 246, 0.05);
             border-radius: 3px;
@@ -172,7 +186,7 @@
                             <!-- Columna Izquierda: Cliente -->
                             <div class="w-1/2 pr-6 flex flex-col justify-start">
                                 <span class="text-[13.5px] font-medium text-slate-600 mb-1">Datos del cliente:</span>
-                                <div id="client-name" contenteditable="true" spellcheck="false" class="text-[21px] font-bold text-slate-900 leading-snug select-text break-words">Brenda Díaz</div>
+                                <div id="client-name" contenteditable="true" spellcheck="false" data-placeholder="Escribir cliente..." class="w-full text-[21px] font-bold text-slate-900 leading-snug select-text break-words">Brenda Díaz</div>
                             </div>
 
                             <!-- Línea Divisoria Vertical Interna -->
@@ -181,14 +195,14 @@
                             <!-- Columna Derecha: Emisor -->
                             <div class="w-1/2 pl-6 flex flex-col justify-start text-[14px] leading-snug space-y-1">
                                 <div class="font-bold text-slate-900">Datos:</div>
-                                <div id="issuer-name" contenteditable="true" spellcheck="false" class="font-medium text-slate-800 select-text break-words">Darwing Moreno</div>
+                                <div id="issuer-name" contenteditable="true" spellcheck="false" data-placeholder="Escribir nombre..." class="w-full font-medium text-slate-800 select-text break-words">Darwing Moreno</div>
                                 <div class="flex items-baseline gap-1.5">
-                                    <span class="font-medium text-slate-600">Cel:</span>
-                                    <span id="issuer-phone" contenteditable="true" spellcheck="false" class="font-bold text-slate-900 select-text">5808 1576</span>
+                                    <span class="font-medium text-slate-600 shrink-0">Cel:</span>
+                                    <span id="issuer-phone" contenteditable="true" spellcheck="false" data-placeholder="Teléfono..." class="flex-1 font-bold text-slate-900 select-text">5808 1576</span>
                                 </div>
                                 <div class="flex items-baseline gap-1.5">
                                     <span class="font-medium text-slate-600 shrink-0">Dirección:</span>
-                                    <span id="issuer-address" contenteditable="true" spellcheck="false" class="font-semibold text-slate-900 select-text break-words">Nagarote, Casino Toruño 2 y media al sur</span>
+                                    <span id="issuer-address" contenteditable="true" spellcheck="false" data-placeholder="Escribir dirección..." class="flex-1 font-semibold text-slate-900 select-text break-words">Nagarote, Casino Toruño 2 y media al sur</span>
                                 </div>
                             </div>
                         </div>
@@ -238,12 +252,12 @@
                     <!-- 5. NOTAS AL PIE (Izquierda) -->
                     <div class="mt-4 pt-1 pb-2 text-[13.5px] text-slate-900 space-y-1.5">
                         <div class="flex items-baseline gap-1.5">
-                            <span class="font-bold">Fecha:</span>
-                            <span id="invoice-date" contenteditable="true" spellcheck="false" class="font-bold select-text">7/10/2026</span>
+                            <span class="font-bold shrink-0">Fecha:</span>
+                            <span id="invoice-date" contenteditable="true" spellcheck="false" data-placeholder="DD/MM/AAAA" class="font-bold select-text">7/10/2026</span>
                         </div>
                         <div class="flex items-baseline gap-1.5">
                             <span class="font-bold shrink-0">Nota de envío:</span>
-                            <span id="shipping-note" contenteditable="true" spellcheck="false" class="font-semibold text-slate-800 select-text break-words">Envío a través de Cargotrans</span>
+                            <span id="shipping-note" contenteditable="true" spellcheck="false" data-placeholder="Escribir nota de envío..." class="flex-1 font-semibold text-slate-800 select-text break-words">Envío a través de Cargotrans</span>
                         </div>
                         <p class="pt-3 text-[12.5px] font-medium text-slate-700">
                             Proforma válida por 15 días a partir de la fecha de emisión
@@ -649,7 +663,7 @@
                 return;
             }
 
-            filtered.forEach((item, index) => {
+            filtered.forEach((item) => {
                 const validProducts = (item.rows || []).filter(r => (r.desc || '').trim() !== '' || (r.qty || '').toString().trim() !== '');
                 const productPreview = validProducts.length > 0
                     ? validProducts.map(r => `${r.qty ? r.qty + 'x ' : ''}${r.desc || 'Producto'}`).join(', ')
@@ -742,7 +756,7 @@
                     <input type="number" step="any" min="0" class="invoice-input row-qty text-center font-bold select-text" aria-label="Cantidad">
                 </td>
                 <td class="py-2.5 px-4 text-left font-bold text-slate-900 border-r border-slate-900 align-middle bg-white">
-                    <div contenteditable="true" spellcheck="false" class="row-desc w-full min-h-[1.35rem] outline-none select-text break-words"></div>
+                    <div contenteditable="true" spellcheck="false" data-placeholder="Descripción..." class="row-desc w-full min-h-[1.35rem] outline-none select-text break-words"></div>
                 </td>
                 <td class="py-2.5 px-3 text-left font-medium text-slate-800 border-r border-slate-900 align-middle bg-white">
                     <div class="flex items-center">
@@ -769,7 +783,10 @@
 
             qtyInput.addEventListener('input', () => calculateTotals(true));
             priceInput.addEventListener('input', () => calculateTotals(true));
-            descDiv.addEventListener('input', () => saveAppState());
+            descDiv.addEventListener('input', () => {
+                if (descDiv.innerHTML === '<br>') descDiv.innerHTML = '';
+                saveAppState();
+            });
 
             removeBtn.addEventListener('click', () => {
                 if (rowsContainer.children.length > 1) {
@@ -830,7 +847,13 @@
         });
 
         [elClientName, elIssuerName, elIssuerPhone, elIssuerAddress, elInvoiceDate, elShippingNote].forEach(el => {
-            el.addEventListener('input', () => saveAppState());
+            el.addEventListener('input', () => {
+                // Limpiar <br> residuales que dejan algunos navegadores al borrar todo el texto
+                if (el.innerHTML === '<br>' || el.textContent.trim() === '') {
+                    if (el.innerHTML === '<br>') el.innerHTML = '';
+                }
+                saveAppState();
+            });
         });
 
         shippingInput.addEventListener('input', () => calculateTotals(true));
